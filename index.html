@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <title>Lab Prep Manager V3.9.1 (Stable)</title>
+    <title>Lab Prep Manager V5.1 (Stable v10)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -24,17 +24,17 @@
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden">
 
-<!-- Initial Loading Screen with Fallback -->
+<!-- Loading Screen -->
 <div id="loader-overlay">
     <div class="flex flex-col items-center" id="loader-content">
         <span class="material-symbols-outlined text-4xl text-blue-600 animate-spin">cloud_sync</span>
-        <p class="mt-2 text-sm text-slate-500 font-medium" id="loader-text">Connecting to Secure Cloud...</p>
+        <p class="mt-4 text-lg font-bold text-slate-800">Lab Manager V5.1</p>
+        <p class="mt-2 text-sm text-slate-500 font-mono bg-slate-100 px-2 py-1 rounded" id="loader-text">Connecting to Cloud (v10)...</p>
     </div>
-    <!-- Hidden Error Box -->
     <div id="loader-error" class="hidden flex-col items-center text-center p-6 max-w-sm">
         <span class="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
-        <h3 class="text-lg font-bold text-slate-800">Connection Issue</h3>
-        <p class="text-sm text-slate-500 mb-4" id="error-msg">Taking longer than expected...</p>
+        <h3 class="text-lg font-bold text-slate-800">Startup Failed</h3>
+        <p class="text-sm text-slate-500 mb-4" id="error-msg">Unknown Error</p>
         <button onclick="window.location.reload()" class="bg-blue-600 text-white px-4 py-2 rounded shadow">Retry</button>
     </div>
 </div>
@@ -42,12 +42,12 @@
 <!-- Header -->
 <header class="bg-white border-b border-slate-200 h-16 shrink-0 z-20 shadow-sm flex items-center justify-between px-6">
     <div class="flex items-center gap-3 cursor-pointer" onclick="app.actions.goToDashboard()" title="Go to Dashboard">
-        <div class="bg-blue-600 text-white p-1.5 rounded-lg shadow-sm">
-            <span class="material-symbols-outlined text-xl">biotech</span>
+        <div class="bg-green-600 text-white p-1.5 rounded-lg shadow-sm">
+            <span class="material-symbols-outlined text-xl">check_circle</span>
         </div>
         <div>
-            <h1 class="text-sm font-bold text-slate-900 leading-tight">Lab Prep Manager V3.9.1</h1>
-            <p class="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Secure Cloud Dashboard</p>
+            <h1 class="text-sm font-bold text-slate-900 leading-tight">Lab Prep Manager V5.1</h1>
+            <p class="text-[10px] font-medium text-green-600 uppercase tracking-wide font-bold">● SYSTEM ONLINE</p>
         </div>
     </div>
     <div class="flex items-center gap-4">
@@ -225,11 +225,12 @@
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+    // --- IMPORTING FIREBASE v10.13.1 (STABLE/COMPATIBLE) ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
 
-    // --- CONFIG ---
+    // --- CONFIG (HARDCODED) ---
     const firebaseConfig = {
         apiKey: "AIzaSyBJzaPqZNu5AVgEYKmzgNwQK5kuHqTOLXM",
         authDomain: "lab-manager-e5fde.firebaseapp.com",
@@ -245,7 +246,7 @@
 
     // --- INITIALIZATION ---
     async function startApp() {
-        // Fallback timer to force hide loader if something stalls
+        // Fallback timer
         setTimeout(() => {
             const loader = document.getElementById('loader-overlay');
             if(loader && loader.style.display !== 'none') {
@@ -253,7 +254,7 @@
                 document.getElementById('loader-error').classList.remove('hidden');
                 document.getElementById('loader-error').classList.add('flex');
             }
-        }, 5000); // 5s timeout
+        }, 5000); 
 
         try {
             appInstance = initializeApp(firebaseConfig);
