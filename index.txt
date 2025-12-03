@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Lab Prep Manager V12.0 (GitHub Ready)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- EXCEL GENERATION (XLSX with Style Support) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
+    
+    <!-- FIREBASE (Global Compat Mode - Best for GitHub Pages) -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none;  scrollbar-width: none; }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .active-nav { background-color: #eff6ff; color: #2563eb; border-right: 3px solid #2563eb; }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        #loader-overlay { position: fixed; inset: 0; background: white; z-index: 100; display: flex; justify-content: center; align-items: center; transition: opacity 0.5s; flex-direction: column; }
+        input:disabled, textarea:disabled { background-color: #f3f4f6; color: #6b7280; cursor: not-allowed; border-color: #e5e7eb; }
+        .session-checkbox { transform: scale(1.2); cursor: pointer; }
+        .protocol-step { margin-bottom: 4px; line-height: 1.4; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+<!-- Loading Screen -->
+<div id="loader-overlay">
+    <div class="flex flex-col items-center" id="loader-content">
+        <span class="material-symbols-outlined text-4xl text-blue-600 animate-spin">cloud_sync</span>
+        <p class="mt-4 text-lg font-bold text-slate-800">Lab Manager V12.0</p>
+        <p class="mt-2 text-sm text-slate-500 font-mono bg-slate-100 px-2 py-1 rounded" id="loader-text">Connecting to Cloud...</p>
+    </div>
+    <div id="loader-error" class="hidden flex-col items-center text-center p-6 max-w-sm">
+        <span class="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
+        <h3 class="text-lg font-bold text-slate-800">Connection Failed</h3>
+        <p class="text-sm text-slate-500 mb-4" id="error-msg">Unknown Error</p>
+        <button onclick="window.location.reload()" class="bg-blue-600 text-white px-4 py-2 rounded shadow">Retry</button>
+    </div>
+</div>
+
+<!-- Header -->
+<header class="bg-white border-b border-slate-200 h-16 shrink-0 z-20 shadow-sm flex items-center justify-between px-6">
+    <div class="flex items-center gap-3 cursor-pointer" onclick="app.actions.goToDashboard()" title="Go to Dashboard">
+        <div class="bg-blue-600 text-white p-1.5 rounded-lg shadow-sm">
+            <span class="material-symbols-outlined text-xl">biotech</span>
+        </div>
+        <div>
+            <h1 class="text-sm font-bold text-slate-900 leading-tight">Lab Prep Manager V12.0</h1>
+            <p class="text-[10px] font-medium text-slate-500 uppercase tracking-wide font-bold">● CLOUD SYNC ACTIVE</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-4">
+        <div class="hidden flex items-center gap-3 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 transition-all" id="activeSessionIndicator">
+            <div class="flex flex-col items-end leading-tight">
+                <span class="text-[10px] text-blue-400 uppercase font-bold">Active Session</span>
+                <span class="text-xs font-bold text-blue-800" id="currentSessionNameDisplay">--</span>
+            </div>
+            <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+            </span>
+        </div>
+        
+        <button class="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors hidden" id="backToDashBtn" onclick="app.actions.goToDashboard()">
+            <span class="material-symbols-outlined">grid_view</span>
+            <span class="text-sm font-medium">All Sessions</span>
+        </button>
+
+        <div class="h-8 w-px bg-slate-200"></div>
+        
+        <button class="flex items-center gap-2 text-slate-600 hover:text-purple-600 transition-colors group" title="Copy Link to Dashboard" onclick="app.utils.copyAppUrl()">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">link</span>
+            <span class="text-sm font-medium">Share App</span>
+        </button>
+        
+        <button class="flex items-center gap-2 text-slate-600 hover:text-green-600 transition-colors group hidden" id="shareSessionBtn" title="Copy Link to This Session" onclick="app.utils.copySessionUrl()">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">person_add</span>
+            <span class="text-sm font-medium">Invite</span>
+        </button>
+    </div>
+</header>
+
+<div class="flex flex-1 overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto z-10">
+        <div class="p-4">
+            <button class="w-full bg-slate-900 hover:bg-slate-800 text-white shadow-md hover:shadow-lg py-3 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all mb-6" onclick="app.modals.openNewSession()">
+                <span class="material-symbols-outlined text-lg">add_circle</span>
+                New Session
+            </button>
+            <div class="opacity-50 pointer-events-none transition-opacity duration-300" id="bufferNav">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-2">Growth Media</p>
+                <nav class="space-y-0.5 mb-6">
+                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="lb" onclick="app.views.loadBuffer('lb')">
+                        <span class="material-symbols-outlined text-lg text-lime-600">radio_button_unchecked</span> LB Broth (Miller)
+                    </button>
+                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="tb" onclick="app.views.loadBuffer('tb')">
+                        <span class="material-symbols-outlined text-lg text-emerald-600">science</span> Terrific Broth (TB)
+                    </button>
+                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="2xyt" onclick="app.views.loadBuffer('2xyt')">
+                        <span class="material-symbols-outlined text-lg text-indigo-600">grid_view</span> 2xYT Medium
+                    </button>
+                </nav>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-2">Lysis Buffers</p>
+                <nav class="space-y-0.5 mb-6">
+                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="p2" onclick="app.views.loadBuffer('p2')">
+                        <span class="material-symbols-outlined text-lg text-orange-500">bolt</span> Buffer P2 (Lysis)
+                    </button>
+                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="p1" onclick="app.views.loadBuffer('p1')">
+                        <span class="material-symbols-outlined text-lg text-teal-600">water_drop</span> Buffer P1 (Resusp)
+                    </button>
+                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="p3" onclick="app.views.loadBuffer('p3')">
+                        <span class="material-symbols-outlined text-lg text-rose-500">stop_circle</span> Buffer P3 (Neut)
+                    </button>
+                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="stock1" onclick="app.views.loadBuffer('stock1')">
+                        <span class="material-symbols-outlined text-lg text-purple-600">science</span> 2M NaOH (Stock 1)
+                    </button>
+                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="stock2" onclick="app.views.loadBuffer('stock2')">
+                        <span class="material-symbols-outlined text-lg text-amber-500">soap</span> 10% SDS (Stock 2)
+                    </button>
+                </nav>
+            </div>
+        </div>
+        <div class="mt-auto p-4 border-t border-slate-100 bg-slate-50">
+            <div class="flex items-start gap-2 text-xs text-slate-500">
+                <span class="material-symbols-outlined text-sm text-blue-500 mt-0.5">lock</span>
+                <span><strong>Security:</strong> Saved entries locked.</span>
+            </div>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto bg-slate-50/50 p-6 relative" id="mainContainer">
+        <!-- Dashboard -->
+        <div class="max-w-5xl mx-auto fade-in" id="dashboardView">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-slate-900">Available Sessions</h2>
+            </div>
+            <div id="sessionList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
+                <div class="col-span-full text-center py-12 text-slate-400 flex flex-col items-center">
+                    <span class="material-symbols-outlined text-4xl mb-2 animate-spin">sync</span>
+                    Fetching data...
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bulk Action Bar -->
+    <div id="bulkActionBar" class="fixed bottom-0 left-64 right-0 bg-white border-t border-blue-200 shadow-xl p-4 flex justify-between items-center transform translate-y-full transition-transform duration-300 z-40">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-bold border border-blue-200">
+                <span id="selectedCount">0</span> Selected
+            </div>
+            <button onclick="app.actions.clearSelection()" class="text-xs text-slate-500 hover:text-slate-800 underline">Clear</button>
+        </div>
+        <div class="flex gap-4">
+            <div class="flex items-center gap-2 border-r border-slate-200 pr-4">
+                <span class="text-xs font-bold text-slate-400 uppercase mr-1">Comparison</span>
+                <button onclick="app.firebaseActions.exportMulti('compare', 'pdf')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded text-sm flex items-center gap-1 border border-slate-300"><span class="material-symbols-outlined text-sm">picture_as_pdf</span> PDF</button>
+                <button onclick="app.firebaseActions.exportMulti('compare', 'excel')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded text-sm flex items-center gap-1 border border-slate-300"><span class="material-symbols-outlined text-sm">table_view</span> XLSX</button>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-400 uppercase mr-1">Report</span>
+                <button onclick="app.firebaseActions.exportMulti('report', 'pdf')" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 shadow"><span class="material-symbols-outlined text-sm">picture_as_pdf</span> PDF</button>
+                <button onclick="app.firebaseActions.exportMulti('report', 'excel')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-sm flex items-center gap-1 shadow"><span class="material-symbols-outlined text-sm">table_view</span> XLSX</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: New Session -->
+<div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" id="modalOverlay">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md hidden scale-95 transition-transform duration-200" id="newSessionModal">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">Initialize Session</h3>
+            </div>
+            <button class="text-slate-400 hover:text-slate-600" onclick="app.modals.close()"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Session Date</label>
+                <input class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" id="sessionDate" type="date">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Project Name</label>
+                <input class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" id="sessionName" placeholder="e.g. Media Prep - Week 42" type="text">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Lead Operator Initials</label>
+                <input class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono" id="sessionOperator" maxlength="3" placeholder="XYZ" type="text">
+            </div>
+        </div>
+        <div class="p-4 bg-slate-50 border-t border-slate-100 rounded-b-xl flex justify-end gap-3">
+            <button class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800" onclick="app.modals.close()">Cancel</button>
+            <button class="px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition-colors" onclick="app.firebaseActions.createCloudSession()">Create Session</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Deviation Warning -->
+<div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" id="deviationModal">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md scale-100 border-2 border-red-500">
+        <div class="p-6 border-b border-slate-100 flex items-center gap-3 bg-red-50 rounded-t-xl">
+            <span class="material-symbols-outlined text-red-600 text-2xl">warning</span>
+            <div>
+                <h3 class="text-lg font-bold text-red-700">Safety Deviation Detected</h3>
+                <p class="text-xs text-red-500 font-bold">Variances exceed 5% tolerance.</p>
+            </div>
+        </div>
+        <div class="p-6">
+            <p class="text-sm text-slate-600 mb-4">The following ingredients significantly differ from the calculated target. Please review before saving.</p>
+            <div id="deviationList" class="bg-slate-50 p-3 rounded border border-slate-200 text-sm space-y-2 mb-4 max-h-40 overflow-y-auto"></div>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 border rounded" onclick="document.getElementById('deviationModal').classList.add('hidden')">Cancel & Fix</button>
+                <button class="px-4 py-2 text-sm font-bold bg-red-600 text-white rounded hover:bg-red-700 shadow-md" onclick="app.firebaseActions.confirmDeviation()">Acknowledge & Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 z-50 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3" id="toast">
+    <span class="material-symbols-outlined text-green-400" id="toastIcon">check_circle</span>
+    <span class="text-sm font-medium" id="toastMsg">Action Successful</span>
+</div>
+
+<script>
+    // --- CONFIG ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyDAAiHGfYSXOC1KiJGCQPZ0VWYQPq0lvR0",
+        authDomain: "lab-fresh-start.firebaseapp.com",
+        projectId: "lab-fresh-start",
+        storageBucket: "lab-fresh-start.firebasestorage.app",
+        messagingSenderId: "1089805600508",
+        appId: "1:1089805600508:web:458038c3b00deb39d9b979"
+    };
+    const ADMIN_PASSWORD = "lab123";
+
+    let db, auth;
+    let activeSessionUnsubscribe = null;
+
+    // --- INITIALIZATION ---
+    async function startApp() {
+        const loaderText = document.getElementById('loader-text');
+
+        setTimeout(() => {
+            const loader = document.getElementById('loader-overlay');
+            if(loader && loader.style.display !== 'none') {
+                document.getElementById('loader-content').classList.add('hidden');
+                document.getElementById('loader-error').classList.remove('hidden');
+                document.getElementById('loader-error').classList.add('flex');
+                document.getElementById('error-msg').innerText = "Connection timed out. Check network.";
+            }
+        }, 8000); 
+
+        try {
+            loaderText.innerText = "Initializing Firebase...";
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+
+            loaderText.innerText = "Authenticating...";
+            await auth.signInAnonymously();
+            
+            loaderText.innerText = "Ready!";
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('session')) {
+                initSession(params.get('session'));
+            } else {
+                app.firebaseActions.loadAllSessions();
+            }
+
+        } catch (e) {
+            console.error("Critical Startup Error", e);
+            document.getElementById('error-msg').innerText = e.message;
+            document.getElementById('loader-content').classList.add('hidden');
+            document.getElementById('loader-error').classList.remove('hidden');
+            document.getElementById('loader-error').classList.add('flex');
+        }
+    }
+
+    // --- LOGIC (RESTORED DETAILED DATA FROM V3.8) ---
+    const buffersData = {
+        stock1: {
+            id: "Stock1", name: "Stock 1: 2 M NaOH", chem: "NaOH", safety: "CORROSIVE", color: "purple", shelfLife: "1 Month",
+            precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% of final volume of Milli-Q water.", "<strong class='block mb-1'>Step 2:</strong> Stir to dissolve (Exothermic).", "<strong class='block mb-1'>Step 3:</strong> Adjust to final volume.", "<strong class='block mb-1'>Step 4:</strong> Store in plastic (PP/HDPE)."],
+            qc: { target: "> 13", unit: "" },
+            baseVol: 25,
+            ingredients: [{ name: "Milli-Q Water (Initial)", amount: 20, unit: "mL", type: "liquid" }, { name: "NaOH Pellets", amount: 2.0, unit: "g", type: "solid" }, { name: "Milli-Q Water (Top up)", amount: "to Vol", unit: "", type: "fill" }]
+        },
+        stock2: {
+            id: "Stock2", name: "Stock 2: 10% SDS", chem: "SDS", safety: "IRRITANT", color: "amber", shelfLife: "3 Months",
+            precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% of final volume of Milli-Q water.", "<strong class='block mb-1'>Step 2:</strong> Heat to 40-50°C to dissolve. DO NOT VORTEX.", "<strong class='block mb-1'>Step 3:</strong> Adjust to final volume.", "<strong class='block mb-1'>Step 4:</strong> Wear mask to avoid inhaling dust."],
+            qc: { target: "6.0 - 9.5", unit: "" },
+            baseVol: 25,
+            ingredients: [{ name: "Milli-Q Water (Initial)", amount: 20, unit: "mL", type: "liquid" }, { name: "SDS Powder", amount: 2.5, unit: "g", type: "solid" }, { name: "Milli-Q Water (Top up)", amount: "to Vol", unit: "", type: "fill" }]
+        },
+        p1: {
+            id: "P1", name: "Buffer P1: Resuspension", chem: "Tris-EDTA", safety: "Safe", color: "teal", shelfLife: "1 Month (4°C)",
+            precautions: ["<strong class='block mb-1'>Step 1:</strong> Dissolve Tris and EDTA in ~80% water.", "<strong class='block mb-1'>Step 2:</strong> Adjust pH to 8.0 (EDTA won't dissolve otherwise).", "<strong class='block mb-1'>Step 3:</strong> Adjust volume.", "<strong class='block mb-1'>Step 4:</strong> Filter sterilize (0.22 µm) and add RNAse A if required."],
+            qc: { target: "8.0 ± 0.1", unit: "" },
+            baseVol: 20,
+            ingredients: [{ name: "Milli-Q Water", amount: 15, unit: "mL", type: "liquid" }, { name: "Tris-HCl", amount: 0.158, unit: "g", type: "solid" }, { name: "EDTA Free Acid", amount: 0.058, unit: "g", type: "solid" }, { name: "2M NaOH", amount: "Drops", unit: "", type: "adj" }]
+        },
+        p3: {
+            id: "P3", name: "Buffer P3: Neutralization", chem: "K-Acetate", safety: "CORROSIVE", color: "rose", shelfLife: "3 Months (4°C)",
+            precautions: ["<strong class='block mb-1'>Step 1:</strong> Dissolve Potassium Acetate in water.", "<strong class='block mb-1'>Step 2:</strong> Adjust pH to 5.5 with Glacial Acetic Acid.", "<strong class='block mb-1'>Step 3:</strong> Adjust volume.", "<strong class='block mb-1'>Step 4:</strong> Rinse pH probe immediately."],
+            qc: { target: "5.5 ± 0.1", unit: "" },
+            baseVol: 20,
+            ingredients: [{ name: "Milli-Q Water", amount: 10, unit: "mL", type: "liquid" }, { name: "Potassium Acetate", amount: 5.89, unit: "g", type: "solid" }, { name: "Glacial Acetic Acid", amount: "Drops", unit: "", type: "adj" }]
+        },
+        p2: {
+            id: "P2", name: "Buffer P2: Lysis", chem: "NaOH/SDS", safety: "FRESH ONLY", color: "orange", shelfLife: "< 15 Mins",
+            precautions: ["<strong class='block mb-1'>Step 1:</strong> Mix Stock 1 and Water.", "<strong class='block mb-1'>Step 2:</strong> Add Stock 2 last to avoid precipitation.", "<strong class='block mb-1'>Step 3:</strong> Invert gently to mix. DO NOT VORTEX.", "<strong class='block mb-1'>Step 4:</strong> Use immediately."],
+            qc: { target: "> 12.5", unit: "" },
+            baseVol: 10,
+            ingredients: [{ name: "Stock 1 (2M NaOH)", amount: 1.0, unit: "mL", type: "liquid" }, { name: "Stock 2 (10% SDS)", amount: 1.0, unit: "mL", type: "liquid" }, { name: "Milli-Q Water", amount: 8.0, unit: "mL", type: "liquid" }]
+        },
+        lb: {
+            id: "LB", name: "LB Broth (Miller)", chem: "Rich Media", safety: "Biohazard Level 1", color: "lime", shelfLife: "Autoclaved",
+            precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% of final volume of Milli-Q water.", "<strong class='block mb-1'>Step 2:</strong> Stir to dissolve. (Optional: Adjust pH to 7.0).", "<strong class='block mb-1'>Step 3:</strong> Adjust to final volume.", "<strong class='block mb-1'>Step 4: Sterilization (Choose One):</strong><ul class='list-disc pl-4 mt-1'><li><em>Standard:</em> Autoclave at 121°C for 20 mins.</li><li><em>Alternative:</em> Filter sterilize through a 0.22 µm membrane.</li></ul>"],
+            qc: { target: "7.0 ± 0.2", unit: "" },
+            baseVol: 1000,
+            ingredients: [{ name: "Milli-Q Water", amount: 950, unit: "mL", type: "liquid" }, { name: "Tryptone", amount: 10, unit: "g", type: "solid" }, { name: "Yeast Extract", amount: 5, unit: "g", type: "solid" }, { name: "NaCl", amount: 10, unit: "g", type: "solid" }, { name: "Water (Top Up)", amount: "to Vol", unit: "", type: "fill" }]
+        },
+        tb: {
+            id: "TB", name: "Terrific Broth (TB)", chem: "Enriched Media", safety: "Biohazard Level 1", color: "emerald", shelfLife: "Autoclaved",
+            precautions: ["<strong class='block mb-1'>Step 1 (Base):</strong> Dissolve Tryptone, Yeast Ext, and Glycerol in 900mL water.", "<strong class='block mb-1'>Step 2 (Salts):</strong> Dissolve Phosphates (KH2PO4, K2HPO4) in 100mL water separately.", "<strong class='block mb-1'>Step 3: Sterilization:</strong> Autoclave OR Filter sterilize BOTH solutions separately.", "<strong class='block mb-1'>Step 4:</strong> Allow both to cool to < 60°C.", "<strong class='block mb-1'>Step 5:</strong> Aseptically mix the Salt solution into the Base solution."],
+            qc: { target: "7.2 ± 0.2", unit: "" },
+            baseVol: 1000,
+            ingredients: [{ name: "Tryptone", amount: 12, unit: "g", type: "solid" }, { name: "Yeast Extract", amount: 24, unit: "g", type: "solid" }, { name: "Glycerol", amount: 5, unit: "g", type: "solid" }, { name: "KH2PO4 (Phosphate Stock)", amount: 2.31, unit: "g", type: "solid" }, { name: "K2HPO4 (Phosphate Stock)", amount: 12.54, unit: "g", type: "solid" }, { name: "Total Water", amount: 1000, unit: "mL", type: "fill" }]
+        },
+        "2xyt": {
+            id: "2xYT", name: "2xYT Medium", chem: "Rich Media", safety: "Biohazard Level 1", color: "indigo", shelfLife: "Autoclaved",
+            precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% water.", "<strong class='block mb-1'>Step 2:</strong> Adjust pH to 7.0. Top up volume.", "<strong class='block mb-1'>Step 3: Sterilization (Choose One):</strong><ul class='list-disc pl-4 mt-1'><li><em>Standard:</em> Autoclave at 121°C for 20 mins.</li><li><em>Alternative:</em> Filter sterilize (0.22 µm) if needed.</li></ul>"],
+            qc: { target: "7.0 ± 0.2", unit: "" },
+            baseVol: 1000,
+            ingredients: [{ name: "Milli-Q Water", amount: 950, unit: "mL", type: "liquid" }, { name: "Tryptone", amount: 16, unit: "g", type: "solid" }, { name: "Yeast Extract", amount: 10, unit: "g", type: "solid" }, { name: "NaCl", amount: 5, unit: "g", type: "solid" }, { name: "Water (Top Up)", amount: "to Vol", unit: "", type: "fill" }]
+        }
+    };
+
+    window.app = {
+        state: { activeSession: null, currentBufferKey: null, allSessions: [], selectedSessions: new Set(), unlockedEntryId: null, pendingEntry: null },
+        utils: {
+            generateId: () => Math.random().toString(36).substr(2, 9),
+            getBatchCode: (op, date, bId) => `${op.toUpperCase()}-${date.replace(/-/g, '')}-${bId}`,
+            showToast: (msg, type = 'success') => {
+                const t = document.getElementById('toast');
+                document.getElementById('toastMsg').innerText = msg;
+                document.getElementById('toastIcon').className = `material-symbols-outlined ${type === 'success' ? 'text-green-400' : 'text-red-400'}`;
+                t.classList.remove('translate-y-20', 'opacity-0');
+                setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
+            },
+            copySessionUrl: () => { 
+                const u = new URL(window.location.href);
+                if(app.state.activeSession && !u.searchParams.get('session')) {
+                   u.searchParams.set('session', app.state.activeSession.id);
+                }
+                navigator.clipboard.writeText(u.toString()).then(() => app.utils.showToast("Invite Link Copied!")); 
+            },
+            copyAppUrl: () => { 
+                const url = window.location.origin + window.location.pathname;
+                navigator.clipboard.writeText(url).then(() => app.utils.showToast("App Link Copied!")); 
+            },
+            sanitizeEntry: (entry) => {
+                const safe = JSON.parse(JSON.stringify(entry));
+                safe.ph = safe.ph || "";
+                safe.cond = safe.cond || "";
+                safe.comments = safe.comments || "";
+                safe.finalVol = safe.finalVol || "";
+                safe.shelfLife = safe.shelfLife || "";
+                safe.qcTarget = safe.qcTarget || "";
+                return safe;
+            }
+        },
+        modals: {
+            openNewSession: () => { document.getElementById('modalOverlay').classList.remove('hidden'); document.getElementById('newSessionModal').classList.remove('hidden'); setTimeout(() => document.getElementById('newSessionModal').classList.replace('scale-95', 'scale-100'), 10); document.getElementById('sessionDate').valueAsDate = new Date(); },
+            close: () => { document.getElementById('newSessionModal').classList.replace('scale-100', 'scale-95'); setTimeout(() => { document.getElementById('modalOverlay').classList.add('hidden'); document.getElementById('newSessionModal').classList.add('hidden'); }, 200); }
+        },
+        firebaseActions: {
+            loadAllSessions: async () => {
+                try {
+                    const snapshot = await db.collection("sessions").orderBy("createdAt", "desc").limit(25).get();
+                    app.state.allSessions = [];
+                    snapshot.forEach((doc) => app.state.allSessions.push(doc.data()));
+                    app.views.renderDashboard();
+                } catch(e) { console.error(e); }
+            },
+            createCloudSession: async () => {
+                const date = document.getElementById('sessionDate').value, name = document.getElementById('sessionName').value, op = document.getElementById('sessionOperator').value;
+                if (!date || !name || !op) return app.utils.showToast("All fields required", "error");
+                const id = app.utils.generateId();
+                const session = { id, name, date, defaultOperator: op.toUpperCase(), entries: [], createdAt: new Date().toISOString() };
+                
+                try {
+                    const url = new URL(window.location); url.searchParams.set('session', id); window.history.pushState({}, '', url);
+                } catch(e) { console.warn("History update failed", e); }
+
+                await db.collection("sessions").doc(id).set(session);
+                initSession(id); app.modals.close();
+            },
+            deleteSession: async (id, event) => {
+                event.stopPropagation();
+                const pass = prompt("Enter Admin Password to Delete Session:");
+                if(pass === ADMIN_PASSWORD) {
+                   try {
+                       await db.collection("sessions").doc(id).delete();
+                       app.utils.showToast("Session Deleted");
+                       app.firebaseActions.loadAllSessions();
+                   } catch(e) { app.utils.showToast("Delete Failed", "error"); }
+                } else {
+                    app.utils.showToast("Incorrect Password", "error");
+                }
+            },
+            prepareEntryForSave: async () => {
+                const s = app.state.activeSession, b = buffersData[app.state.currentBufferKey];
+                if(!document.getElementById('equipCheck').checked) return app.utils.showToast("Confirm protocols", "error");
+                const op = document.getElementById('bufferOperator').value || s.defaultOperator, targetVol = document.getElementById('targetVol').value;
+                const ingredients = [], deviations = [];
+                
+                if(b.id === 'P2') {
+                    ingredients.push({name: "Stock 1", target: document.getElementById('calc_target_0').innerText, actual: document.getElementById('p2_naoh').value, unit: "mL"});
+                    ingredients.push({name: "Stock 2", target: document.getElementById('calc_target_1').innerText, actual: document.getElementById('p2_sds').value, unit: "mL"});
+                    ingredients.push({name: "Water", target: document.getElementById('calc_target_2').innerText, actual: document.getElementById('p2_water').value, unit: "mL"});
+                } else {
+                    b.ingredients.forEach((ing, i) => { if(ing.type!=='fill' && ing.type!=='adj') ingredients.push({name: ing.name, target: document.getElementById(`calc_target_${i}`).innerText, actual: document.getElementById(`ing_input_${i}`).value, unit: ing.unit}); });
+                }
+
+                ingredients.forEach(i => {
+                    const t = parseFloat(i.target), a = parseFloat(i.actual);
+                    if(!isNaN(t) && !isNaN(a) && Math.abs((a-t)/t) > 0.05) deviations.push(`${i.name}: Target ${t} vs ${a}`);
+                    else if(t>0 && isNaN(a)) deviations.push(`${i.name}: Missing Value`);
+                });
+
+                const exist = s.entries.find(e => e.bufferId === b.id);
+                let entry = { 
+                    entryId: exist ? exist.entryId : app.utils.generateId(), 
+                    bufferId: b.id, 
+                    bufferName: b.name, 
+                    batchCode: app.utils.getBatchCode(op, s.date, b.id), 
+                    operator: op.toUpperCase(), 
+                    targetVol, 
+                    finalVol: document.getElementById('finalVol').value, 
+                    ph: document.getElementById('measuredPh').value, 
+                    cond: document.getElementById('measuredCond').value, 
+                    comments: document.getElementById('comments').value, 
+                    ingredients, 
+                    shelfLife: b.shelfLife || "N/A",
+                    qcTarget: (b.qc ? b.qc.target : "N/A"),
+                    timestamp: new Date().toISOString() 
+                };
+
+                entry = app.utils.sanitizeEntry(entry);
+
+                if(deviations.length > 0) {
+                    app.state.pendingEntry = entry;
+                    document.getElementById('deviationList').innerHTML = deviations.map(d => `<div class="text-red-700">• ${d}</div>`).join('');
+                    document.getElementById('deviationModal').classList.remove('hidden');
+                } else app.firebaseActions.commitSave(entry);
+            },
+            confirmDeviation: () => { app.firebaseActions.commitSave(app.state.pendingEntry); document.getElementById('deviationModal').classList.add('hidden'); },
+            commitSave: async (entry) => {
+                const s = app.state.activeSession;
+                let entries = [...s.entries]; const idx = entries.findIndex(e => e.bufferId === entry.bufferId);
+                if(idx >= 0) entries[idx] = entry; else entries.push(entry);
+                await db.collection("sessions").doc(s.id).update({ entries });
+                app.utils.showToast("Saved"); app.state.unlockedEntryId = null; app.views.showSessionManager();
+            },
+            exportMulti: (mode, format, manual) => {
+                const items = manual || app.state.allSessions.filter(s => app.state.selectedSessions.has(s.id));
+                if(!items.length) return app.utils.showToast("Select sessions", "error");
+                app.utils.showToast("Generating...");
+                
+                if (format === 'excel') generateExcelRich(mode, items);
+                if (format === 'pdf') generatePDFRich(mode, items);
+            },
+            unlockEntry: (id) => { if(prompt("Password:") === ADMIN_PASSWORD) { app.state.unlockedEntryId = id; app.views.loadBuffer(app.state.currentBufferKey); } else app.utils.showToast("Wrong Password", "error"); },
+            exportExcelSingle: () => app.firebaseActions.exportMulti('report', 'excel', [app.state.activeSession]),
+            exportPDFSingle: () => app.firebaseActions.exportMulti('report', 'pdf', [app.state.activeSession])
+        },
+        actions: {
+            toggleSessionSelection: (id) => { app.state.selectedSessions.has(id) ? app.state.selectedSessions.delete(id) : app.state.selectedSessions.add(id); app.views.updateBulkActionUI(); },
+            clearSelection: () => { app.state.selectedSessions.clear(); document.querySelectorAll('.session-checkbox').forEach(c => c.checked=false); app.views.updateBulkActionUI(); },
+            calculate: (key) => {
+                const b = buffersData[key], tVol = parseFloat(document.getElementById('targetVol').value)||0, ratio = tVol/b.baseVol;
+                if(key==='p2') {
+                    document.getElementById('calc_target_0').innerText = (tVol*0.1).toFixed(3); document.getElementById('calc_target_1').innerText = (tVol*0.1).toFixed(3); document.getElementById('calc_target_2').innerText = (tVol*0.8).toFixed(3);
+                } else {
+                    b.ingredients.forEach((ing, i) => { if(ing.type!=='fill' && ing.type!=='adj') document.getElementById(`calc_target_${i}`).innerText = (ing.amount * ratio).toFixed(3); });
+                }
+            },
+            updateLiveBatchCode: () => document.getElementById('liveBatchCode').innerText = app.utils.getBatchCode(document.getElementById('bufferOperator').value, app.state.activeSession.date, buffersData[app.state.currentBufferKey].id),
+            joinSession: (id, e) => { 
+                if(e && e.target.type==='checkbox') return; 
+                if(e && e.target.closest('.delete-btn')) return;
+
+                try {
+                    const u = new URL(window.location); u.searchParams.set('session', id); window.history.pushState({},'',u); 
+                } catch(e) { console.warn("History update failed", e); }
+                initSession(id); 
+            },
+            goToDashboard: () => { 
+                try {
+                    const u = new URL(window.location); u.searchParams.delete('session'); window.history.pushState({},'',u); 
+                } catch(e) { console.warn("History update failed", e); }
+
+                app.state.activeSession=null; 
+                if(activeSessionUnsubscribe) { activeSessionUnsubscribe(); activeSessionUnsubscribe=null; }
+                
+                // SAFE UI UPDATE
+                const el = document.getElementById('activeSessionIndicator'); if(el) el.classList.add('hidden');
+                const btn1 = document.getElementById('backToDashBtn'); if(btn1) btn1.classList.add('hidden');
+                const nav = document.getElementById('bufferNav'); if(nav) nav.classList.add('opacity-50','pointer-events-none');
+                const btn2 = document.getElementById('shareSessionBtn'); if(btn2) btn2.classList.add('hidden');
+
+                // Manually Restore Main Container Skeleton for Dashboard
+                document.getElementById('mainContainer').innerHTML = `
+                <div class="max-w-5xl mx-auto fade-in" id="dashboardView">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-slate-900">Available Sessions</h2>
+                    </div>
+                    <div id="sessionList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
+                        <div class="col-span-full text-center py-12 text-slate-400 flex flex-col items-center">
+                            <span class="material-symbols-outlined text-4xl mb-2 animate-spin">sync</span>
+                            Fetching data...
+                        </div>
+                    </div>
+                </div>`;
+
+                app.firebaseActions.loadAllSessions();
+            }
+        },
+        ui: {
+            updateSessionIndicator: () => {
+                const el = document.getElementById('activeSessionIndicator'); if(el) el.classList.remove('hidden');
+                const btn1 = document.getElementById('backToDashBtn'); if(btn1) btn1.classList.remove('hidden');
+                const btn2 = document.getElementById('shareSessionBtn'); if(btn2) btn2.classList.remove('hidden');
+                const txt = document.getElementById('currentSessionNameDisplay'); if(txt) txt.innerText = app.state.activeSession.name;
+            },
+            enableNav: () => document.getElementById('bufferNav').classList.remove('opacity-50', 'pointer-events-none'),
+            highlightNav: (id) => document.querySelectorAll('.nav-item').forEach(e => e.classList.toggle('active-nav', e.dataset.id === id))
+        },
+        views: {
+            updateBulkActionUI: () => document.getElementById('bulkActionBar').classList.toggle('translate-y-full', app.state.selectedSessions.size === 0),
+            renderDashboard: () => {
+                const l = document.getElementById('loader-overlay'); if(l) { l.style.opacity='0'; setTimeout(()=>l.style.display='none',500); }
+                const list = document.getElementById('sessionList');
+                
+                if (!list) return;
+
+                if(!app.state.allSessions.length) return list.innerHTML = '<div class="col-span-full text-center text-slate-400 py-12">No Sessions</div>';
+                list.innerHTML = app.state.allSessions.map(s => `
+                    <div class="relative bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md cursor-pointer h-40 flex flex-col justify-between group" onclick="app.actions.joinSession('${s.id}', event)">
+                        <div class="absolute top-4 right-4 z-10 flex gap-2">
+                            <button onclick="app.firebaseActions.deleteSession('${s.id}', event)" class="delete-btn text-slate-300 hover:text-red-500 transition-colors p-1"><span class="material-symbols-outlined text-lg">delete</span></button>
+                            <input type="checkbox" class="session-checkbox" ${app.state.selectedSessions.has(s.id)?'checked':''} onchange="app.actions.toggleSessionSelection('${s.id}')">
+                        </div>
+                        <div><h3 class="font-bold text-slate-800 text-lg truncate pr-16">${s.name}</h3><span class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded font-mono">${s.date}</span><p class="text-sm text-slate-500 mt-2">Lead: ${s.defaultOperator}</p></div>
+                        <div class="flex justify-between items-center pt-4 border-t border-slate-50"><span class="text-xs text-slate-400">${s.entries?.length||0} entries</span><span class="material-symbols-outlined text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span></div>
+                    </div>`).join('');
+            },
+            showSessionManager: () => {
+                app.state.currentBufferKey=null; app.ui.highlightNav(null);
+                const s = app.state.activeSession;
+                document.getElementById('mainContainer').innerHTML = `<div class="max-w-4xl mx-auto fade-in"><div class="flex justify-between items-end mb-6"><h2 class="text-2xl font-bold text-slate-900">${s.name}</h2><div class="flex gap-2"><button onclick="app.firebaseActions.exportPDFSingle()" class="bg-slate-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><span class="material-symbols-outlined text-sm">picture_as_pdf</span> PDF</button><button onclick="app.firebaseActions.exportExcelSingle()" class="bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><span class="material-symbols-outlined text-sm">table_view</span> XLSX</button></div></div><div class="space-y-3">${s.entries.length?s.entries.map(e=>`<div class="bg-white p-4 rounded border flex justify-between"><div><div class="font-bold">${e.bufferName}</div><div class="text-xs text-slate-500">${e.batchCode}</div></div><button onclick="app.views.loadBuffer('${Object.keys(buffersData).find(k=>buffersData[k].id===e.bufferId)}')" class="text-blue-600"><span class="material-symbols-outlined">edit</span></button></div>`).join(''):'<div class="text-center py-10 text-slate-400">No Entries</div>'}</div></div>`;
+            },
+            loadBuffer: (key) => {
+                app.state.currentBufferKey=key; app.ui.highlightNav(key);
+                const b = buffersData[key], s = app.state.activeSession, exist = s.entries.find(e=>e.bufferId===b.id);
+                const locked = exist && app.state.unlockedEntryId !== exist.entryId;
+                const disabled = locked ? 'disabled' : '';
+                const btn = locked ? `<button onclick="app.firebaseActions.unlockEntry('${exist.entryId}')" class="bg-amber-600 text-white px-6 py-2 rounded font-bold shadow">Unlock</button>` : `<button onclick="app.firebaseActions.prepareEntryForSave()" class="bg-slate-900 text-white px-6 py-2 rounded font-bold shadow">Save</button>`;
+                
+                let rows = '';
+                if(b.id==='P2') {
+                    rows = `
+                    <div class="grid grid-cols-12 gap-2 py-2 text-sm border-b">
+                        <div class="col-span-5">Stock 1 (2M NaOH)</div><div class="col-span-3 text-right"><span id="calc_target_0" class="font-mono font-bold text-blue-600">1.0</span> <span class="text-xs text-slate-500">mL</span></div><div class="col-span-4 relative"><input id="p2_naoh" type="number" ${disabled} class="w-full border rounded px-2" value="${exist?.ingredients[0].actual||''}"></div>
+                    </div>
+                    <div class="grid grid-cols-12 gap-2 py-2 text-sm border-b">
+                        <div class="col-span-5">Stock 2 (10% SDS)</div><div class="col-span-3 text-right"><span id="calc_target_1" class="font-mono font-bold text-blue-600">1.0</span> <span class="text-xs text-slate-500">mL</span></div><div class="col-span-4 relative"><input id="p2_sds" type="number" ${disabled} class="w-full border rounded px-2" value="${exist?.ingredients[1].actual||''}"></div>
+                    </div>
+                    <div class="grid grid-cols-12 gap-2 py-2 text-sm border-b">
+                        <div class="col-span-5">Milli-Q Water</div><div class="col-span-3 text-right"><span id="calc_target_2" class="font-mono font-bold text-blue-600">8.0</span> <span class="text-xs text-slate-500">mL</span></div><div class="col-span-4 relative"><input id="p2_water" type="number" ${disabled} class="w-full border rounded px-2" value="${exist?.ingredients[2].actual||''}"></div>
+                    </div>`;
+                } else {
+                    rows = b.ingredients.filter(i=>i.type!=='fill'&&i.type!=='adj').map((ing,i)=>`<div class="grid grid-cols-12 gap-2 py-2 text-sm border-b"><div class="col-span-5">${ing.name}</div><div class="col-span-3 text-right"><span id="calc_target_${i}" class="font-mono font-bold text-blue-600">${ing.amount}</span> <span class="text-xs text-slate-500">${ing.unit}</span></div><div class="col-span-4 relative"><input id="ing_input_${i}" type="number" step="0.001" ${disabled} class="w-full border rounded px-2" value="${exist?.ingredients[i].actual||''}"></div></div>`).join('');
+                }
+
+                document.getElementById('mainContainer').innerHTML = `
+                <div class="max-w-6xl mx-auto fade-in pb-24">
+                    <div class="flex justify-between mb-6"><div><h2 class="text-3xl font-bold">${b.name}</h2><span class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 font-bold mt-1 inline-block">${b.safety}</span></div><div class="bg-white p-3 border rounded"><div class="text-xs font-bold text-slate-400">BATCH ID</div><div class="font-mono text-lg" id="liveBatchCode">${exist?exist.batchCode:'...'}</div></div></div>
+                    <div class="grid lg:grid-cols-12 gap-6">
+                        <div class="lg:col-span-4 space-y-4">
+                            <div class="bg-white p-5 border rounded shadow-sm">
+                                <label class="text-xs font-bold text-slate-500">Target Vol (mL)</label><input type="number" id="targetVol" ${disabled} value="${exist?exist.targetVol:b.baseVol}" class="w-full text-3xl font-bold border-b-2 border-blue-200 outline-none bg-transparent" oninput="app.actions.calculate('${key}')">
+                                <label class="text-xs font-bold text-slate-500 mt-4 block">Operator</label><input type="text" id="bufferOperator" ${disabled} value="${exist?exist.operator:s.defaultOperator}" maxlength="3" class="w-full text-lg font-bold uppercase font-mono border-b-2 outline-none bg-transparent" oninput="app.actions.updateLiveBatchCode()">
+                            </div>
+                            <div class="bg-amber-50 border border-amber-200 p-4 rounded text-xs text-amber-900">
+                                <strong class="block mb-2 text-amber-800">Preparation Protocols</strong>
+                                <div class="space-y-2">
+                                    ${b.precautions.map(p => `<div class="protocol-step">${p}</div>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-8 bg-white border rounded shadow-sm flex flex-col">
+                            <div class="p-6 space-y-6 flex-1">
+                                <div><h4 class="font-bold border-b pb-1 mb-2">Recipe / Ingredients</h4>${rows}</div>
+                                <div class="grid grid-cols-3 gap-4">
+                                    <div><label class="text-xs font-bold">Final Vol (mL)</label><input id="finalVol" type="number" ${disabled} class="w-full border rounded p-2" value="${exist?.finalVol||''}"></div>
+                                    <div><label class="text-xs font-bold">pH (Target: ${b.qc.target})</label><input id="measuredPh" type="number" step="0.01" ${disabled} class="w-full border rounded p-2" value="${exist?.ph||''}"></div>
+                                    <div><label class="text-xs font-bold">Cond/Other</label><input id="measuredCond" type="text" ${disabled} class="w-full border rounded p-2" value="${exist?.cond||''}"></div>
+                                </div>
+                                <div><label class="text-xs font-bold">Comments</label><textarea id="comments" ${disabled} class="w-full border rounded p-2" rows="2">${exist?.comments||''}</textarea></div>
+                                <div class="flex gap-2 items-start bg-slate-50 p-2 rounded"><input type="checkbox" id="equipCheck" ${disabled} class="mt-1"><label for="equipCheck" class="text-xs">I certify I have followed the detailed mixing and sterilization protocols (Autoclave/Filter) above.</label></div>
+                            </div>
+                            <div class="p-4 border-t bg-slate-50 flex justify-end">${btn}</div>
+                        </div>
+                    </div>
+                </div>`;
+                app.actions.calculate(key);
+                if(!exist) app.actions.updateLiveBatchCode();
+            }
+        }
+    };
+
+    function initSession(id) {
+        if(activeSessionUnsubscribe) activeSessionUnsubscribe();
+        const l = document.getElementById('loader-overlay'); if(l) l.style.display='flex';
+        // COMPAT: db.collection().doc().onSnapshot()
+        activeSessionUnsubscribe = db.collection("sessions").doc(id).onSnapshot(s => {
+            if(s.exists) { app.state.activeSession = s.data(); app.ui.updateSessionIndicator(); app.ui.enableNav(); 
+                if(app.state.currentBufferKey) app.views.loadBuffer(app.state.currentBufferKey); else app.views.showSessionManager();
+                if(l) l.style.display='none';
+            } else { app.utils.showToast("Invalid Session"); app.actions.goToDashboard(); }
+        });
+    }
+
+    // --- GENERATION FUNCTIONS USING XLSX-JS-STYLE ---
+    function generateExcelRich(mode, sessions) {
+        const wb = XLSX.utils.book_new();
+        
+        if(mode === 'report') {
+            sessions.forEach(s => {
+                // Define Header Rows
+                const wsData = [
+                    [{ v: `Session: ${s.name}`, s: { font: { bold: true, sz: 14 } } }],
+                    [{ v: `Date: ${s.date} | Lead: ${s.defaultOperator}`, s: { font: { color: { rgb: "555555" } } } }],
+                    [],
+                    // Table Header
+                    ["Buffer", "Batch", "Operator", "Ingredient", "Target", "Unit", "Actual", "Status", "Final Vol", "pH", "Cond", "Comments"].map(h => ({ v: h, s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "444444" } } } }))
+                ];
+
+                (s.entries||[]).forEach(e => {
+                    (e.ingredients||[]).forEach(i => {
+                        let statusColor = "FFFFFF";
+                        let statusText = "OK";
+                        
+                        const t=parseFloat(i.target), a=parseFloat(i.actual);
+                        if(!isNaN(t) && !isNaN(a) && Math.abs((a-t)/t) > 0.05) {
+                            statusColor = "FFCCCC"; // Light Red
+                            statusText = "DEV > 5%";
+                        }
+
+                        wsData.push([
+                            { v: e.bufferName },
+                            { v: e.batchCode },
+                            { v: e.operator },
+                            { v: i.name },
+                            { v: t || "" },
+                            { v: i.unit || "" },
+                            { v: a || "" },
+                            { v: statusText, s: { fill: { fgColor: { rgb: statusColor } } } },
+                            { v: e.finalVol || "" },
+                            { v: e.ph || "" },
+                            { v: e.cond || "" },
+                            { v: e.comments || "" }
+                        ]);
+                    });
+                    // Spacer row
+                    wsData.push([]);
+                });
+
+                const ws = XLSX.utils.aoa_to_sheet([]);
+                XLSX.utils.sheet_add_aoa(ws, wsData, { origin: "A1" });
+                
+                // Set col widths
+                ws['!cols'] = [{wch:20}, {wch:25}, {wch:10}, {wch:25}, {wch:10}, {wch:8}, {wch:10}, {wch:12}, {wch:10}, {wch:8}, {wch:10}, {wch:30}];
+
+                // Sanitize sheet name (max 31 chars)
+                const safeName = s.name.replace(/[^a-zA-Z0-9 ]/g,"").substring(0,30);
+                XLSX.utils.book_append_sheet(wb, ws, safeName);
+            });
+        } else {
+            // COMPARE MODE
+            const wsData = [
+                [{ v: "HEAD-TO-HEAD COMPARISON", s: { font: { bold: true, sz: 16 } } }]
+            ];
+
+            const grouped = {};
+            sessions.forEach(s => (s.entries||[]).forEach(e => { 
+                if(!grouped[e.bufferName]) grouped[e.bufferName]=[]; 
+                grouped[e.bufferName].push({...e, sName: s.name, sDate: s.date}); 
+            }));
+
+            Object.keys(grouped).sort().forEach(bName => {
+                wsData.push([]);
+                wsData.push([{ v: `BUFFER: ${bName}`, s: { font: { bold: true, color: { rgb: "004488" } } } }]);
+                wsData.push(["Session", "Date", "Batch", "Final Vol", "pH", "Cond", "Operator", "Comments", "Status"].map(h => ({ v: h, s: { font: { bold: true }, fill: { fgColor: { rgb: "DDDDDD" } } } })));
+                
+                grouped[bName].forEach(e => {
+                    // Check deviations inside ingredients
+                    let hasDev = "OK";
+                    let rowColor = "FFFFFF";
+                    (e.ingredients||[]).forEach(i => {
+                        const t=parseFloat(i.target), a=parseFloat(i.actual);
+                        if(!isNaN(t) && !isNaN(a) && Math.abs((a-t)/t) > 0.05) hasDev = "DEV!";
+                    });
+                    if(hasDev === "DEV!") rowColor = "FFF0F0";
+
+                    wsData.push([
+                        { v: e.sName, s:{fill:{fgColor:{rgb:rowColor}}} },
+                        { v: e.sDate, s:{fill:{fgColor:{rgb:rowColor}}} },
+                        { v: e.batchCode, s:{fill:{fgColor:{rgb:rowColor}}} },
+                        { v: e.finalVol, s:{fill:{fgColor:{rgb:rowColor}}} },
+                        { v: e.ph, s:{fill:{fgColor:{rgb:rowColor}}} },
+                        { v: e.cond, s:{fill:{fgColor:{rgb:rowColor}}} },
+                        { v: e.operator, s:{fill:{fgColor:{rgb:rowColor}}} },
+                        { v: e.comments, s:{fill:{fgColor:{rgb:rowColor}}} },
+                        { v: hasDev, s: { font: { bold: hasDev==="DEV!", color: { rgb: hasDev==="DEV!"?"FF0000":"000000" } }, fill:{fgColor:{rgb:rowColor}} } }
+                    ]);
+                });
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet([]);
+            XLSX.utils.sheet_add_aoa(ws, wsData);
+            ws['!cols'] = [{wch:20}, {wch:15}, {wch:25}, {wch:10}, {wch:8}, {wch:10}, {wch:10}, {wch:30}, {wch:10}];
+            XLSX.utils.book_append_sheet(wb, ws, "Comparison");
+        }
+
+        XLSX.writeFile(wb, `Lab_${mode}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    function generatePDFRich(mode, sessions) {
+        const doc = new window.jspdf.jsPDF('l');
+        let y=20;
+        
+        if(mode==='report') {
+            sessions.forEach((s,idx) => {
+                if(idx>0) { doc.addPage(); y=20; }
+                doc.setFontSize(16); doc.text(`Session: ${s.name}`, 14, y); y+=8;
+                doc.setFontSize(10); doc.text(`Date: ${s.date} | Lead: ${s.defaultOperator}`, 14, y); y+=10;
+                
+                (s.entries||[]).forEach(e => {
+                    if(y>180) { doc.addPage(); y=20; }
+                    doc.setFillColor(240,240,240); doc.rect(14,y,269,14,'F');
+                    doc.setFont("helvetica","bold"); doc.text(`${e.bufferName} (${e.batchCode})`, 16, y+5);
+                    doc.setFont("helvetica","normal"); doc.text(`Vol: ${e.finalVol} | pH: ${e.ph} | Cond: ${e.cond} | Note: ${e.comments}`, 16, y+10);
+                    y+=16;
+                    
+                    const body = (e.ingredients||[]).map(i => [i.name, i.target, i.unit, i.actual, (!isNaN(i.target) && Math.abs((i.actual-i.target)/i.target)>0.05 ? "DEV!" : "OK")]);
+                    doc.autoTable({ startY:y, head:[['Ingredient','Target','Unit','Actual','Status']], body:body, theme:'grid', margin:{left:14,right:14} });
+                    y = doc.lastAutoTable.finalY + 10;
+                });
+            });
+        } else {
+            doc.text("Comparison Report", 14, 20); y+=10;
+            const grouped = {};
+            sessions.forEach(s => (s.entries||[]).forEach(e => { 
+                if(!grouped[e.bufferName]) grouped[e.bufferName]=[]; 
+                // Calculate status for PDF comparison table
+                let status = "OK";
+                (e.ingredients || []).forEach(i => {
+                     if (!isNaN(i.target) && Math.abs((i.actual - i.target) / i.target) > 0.05) status = "DEV!";
+                });
+                grouped[e.bufferName].push([s.name, s.date, e.batchCode, e.finalVol, e.ph, e.cond, e.operator, e.comments, status]); 
+            }));
+            
+            Object.keys(grouped).sort().forEach(b => {
+                 if(y>180) { doc.addPage(); y=20; }
+                 doc.setFont("helvetica","bold"); doc.text(b, 14, y); y+=6;
+                 
+                 // Use 'autoTable' from the library
+                 doc.autoTable({ 
+                     startY: y, 
+                     head:[['Session','Date','Batch','Vol','pH','Cond', 'Op', 'Comments', 'Status']], 
+                     body: grouped[b], 
+                     theme:'striped',
+                     headStyles: { fillColor: [50, 50, 50] },
+                     styles: { fontSize: 8, cellPadding: 1.5 },
+                     columnStyles: { 7: { cellWidth: 50 } } // Wider comments
+                 });
+                 y = doc.lastAutoTable.finalY + 10;
+            });
+        }
+        doc.save(`Lab_${mode}.pdf`);
+    }
+
+    // START
+    startApp();
+</script>
+</body>
+</html>
