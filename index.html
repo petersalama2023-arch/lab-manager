@@ -3,17 +3,17 @@
 <head>
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <title>Lab Prep Manager V12.0 (GitHub Ready)</title>
+    <title>Lab Prep Manager V12.1 (Auth & Approval)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     
-    <!-- EXCEL GENERATION (XLSX with Style Support) -->
+    <!-- EXCEL GENERATION -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
     
-    <!-- FIREBASE (Global Compat Mode - Best for GitHub Pages) -->
+    <!-- FIREBASE (Global Compat Mode) -->
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
@@ -31,21 +31,81 @@
         #loader-overlay { position: fixed; inset: 0; background: white; z-index: 100; display: flex; justify-content: center; align-items: center; transition: opacity 0.5s; flex-direction: column; }
         input:disabled, textarea:disabled { background-color: #f3f4f6; color: #6b7280; cursor: not-allowed; border-color: #e5e7eb; }
         .session-checkbox { transform: scale(1.2); cursor: pointer; }
-        .protocol-step { margin-bottom: 4px; line-height: 1.4; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden">
 
-<!-- Loading Screen -->
+<!-- Loading / Auth Screen -->
 <div id="loader-overlay">
+    <!-- Loader -->
     <div class="flex flex-col items-center" id="loader-content">
         <span class="material-symbols-outlined text-4xl text-blue-600 animate-spin">cloud_sync</span>
-        <p class="mt-4 text-lg font-bold text-slate-800">Lab Manager V12.0</p>
-        <p class="mt-2 text-sm text-slate-500 font-mono bg-slate-100 px-2 py-1 rounded" id="loader-text">Connecting to Cloud...</p>
+        <p class="mt-4 text-lg font-bold text-slate-800">Lab Manager V12.1</p>
+        <p class="mt-2 text-sm text-slate-500 font-mono bg-slate-100 px-2 py-1 rounded" id="loader-text">Connecting...</p>
     </div>
+
+    <!-- Login Form -->
+    <div id="auth-form" class="hidden w-full max-w-sm bg-white p-8 rounded-xl shadow-2xl border border-slate-200">
+        <div class="text-center mb-6">
+            <span class="material-symbols-outlined text-4xl text-blue-600">science</span>
+            <h2 class="text-2xl font-bold text-slate-800 mt-2">Welcome Back</h2>
+            <p class="text-sm text-slate-500">Sign in to access the lab manager.</p>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
+                <input type="email" id="login-email" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
+                <input type="password" id="login-pass" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-blue-500">
+            </div>
+            <button onclick="app.auth.login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition">Sign In</button>
+            <div class="text-center text-sm text-slate-500">
+                No account? <button onclick="app.auth.toggleView('register')" class="text-blue-600 hover:underline">Register</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="register-form" class="hidden w-full max-w-sm bg-white p-8 rounded-xl shadow-2xl border border-slate-200">
+        <div class="text-center mb-6">
+            <span class="material-symbols-outlined text-4xl text-purple-600">person_add</span>
+            <h2 class="text-2xl font-bold text-slate-800 mt-2">Request Access</h2>
+            <p class="text-sm text-slate-500">Create an account for approval.</p>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name</label>
+                <input type="text" id="reg-name" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-purple-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
+                <input type="email" id="reg-email" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-purple-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
+                <input type="password" id="reg-pass" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-purple-500">
+            </div>
+            <button onclick="app.auth.register()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded transition">Register</button>
+            <div class="text-center text-sm text-slate-500">
+                Have an account? <button onclick="app.auth.toggleView('login')" class="text-blue-600 hover:underline">Sign In</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Approval Screen -->
+    <div id="pending-screen" class="hidden w-full max-w-md bg-white p-8 rounded-xl shadow-2xl border-t-4 border-amber-500 text-center">
+        <span class="material-symbols-outlined text-5xl text-amber-500 mb-4">hourglass_top</span>
+        <h2 class="text-2xl font-bold text-slate-800">Account Pending</h2>
+        <p class="text-slate-600 mt-2">Your account has been created but requires administrator approval.</p>
+        <p class="text-sm text-slate-400 mt-4">Please contact the lab manager to activate your access.</p>
+        <button onclick="app.auth.logout()" class="mt-6 text-blue-600 hover:underline text-sm">Sign Out</button>
+    </div>
+
     <div id="loader-error" class="hidden flex-col items-center text-center p-6 max-w-sm">
         <span class="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
-        <h3 class="text-lg font-bold text-slate-800">Connection Failed</h3>
+        <h3 class="text-lg font-bold text-slate-800">Error</h3>
         <p class="text-sm text-slate-500 mb-4" id="error-msg">Unknown Error</p>
         <button onclick="window.location.reload()" class="bg-blue-600 text-white px-4 py-2 rounded shadow">Retry</button>
     </div>
@@ -58,7 +118,7 @@
             <span class="material-symbols-outlined text-xl">biotech</span>
         </div>
         <div>
-            <h1 class="text-sm font-bold text-slate-900 leading-tight">Lab Prep Manager V12.0</h1>
+            <h1 class="text-sm font-bold text-slate-900 leading-tight">Lab Prep Manager V12.1</h1>
             <p class="text-[10px] font-medium text-slate-500 uppercase tracking-wide font-bold">● CLOUD SYNC ACTIVE</p>
         </div>
     </div>
@@ -81,18 +141,29 @@
 
         <div class="h-8 w-px bg-slate-200"></div>
         
+        <!-- Manage Users (Admin) -->
+        <button class="flex items-center gap-2 text-slate-600 hover:text-amber-600 transition-colors group" title="Approve Users" onclick="app.views.openUserModal()">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">admin_panel_settings</span>
+            <span class="text-sm font-medium">Users</span>
+        </button>
+
         <button class="flex items-center gap-2 text-slate-600 hover:text-purple-600 transition-colors group" title="Copy Link to Dashboard" onclick="app.utils.copyAppUrl()">
             <span class="material-symbols-outlined group-hover:scale-110 transition-transform">link</span>
-            <span class="text-sm font-medium">Share App</span>
+            <span class="text-sm font-medium">App</span>
         </button>
         
         <button class="flex items-center gap-2 text-slate-600 hover:text-green-600 transition-colors group hidden" id="shareSessionBtn" title="Copy Link to This Session" onclick="app.utils.copySessionUrl()">
             <span class="material-symbols-outlined group-hover:scale-110 transition-transform">person_add</span>
             <span class="text-sm font-medium">Invite</span>
         </button>
+
+        <button class="flex items-center gap-2 text-slate-600 hover:text-red-600 transition-colors group" title="Sign Out" onclick="app.auth.logout()">
+            <span class="material-symbols-outlined group-hover:scale-110 transition-transform">logout</span>
+        </button>
     </div>
 </header>
 
+<!-- Main UI Wrapper -->
 <div class="flex flex-1 overflow-hidden">
     <!-- Sidebar -->
     <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto z-10">
@@ -232,6 +303,19 @@
     </div>
 </div>
 
+<!-- Modal: Manage Users (Admin) -->
+<div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" id="userModal">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg scale-100">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-slate-900">Manage Users</h3>
+            <button class="text-slate-400 hover:text-slate-600" onclick="app.views.closeUserModal()"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="p-0 max-h-96 overflow-y-auto" id="userListContainer">
+            <div class="p-6 text-center text-slate-400">Loading users...</div>
+        </div>
+    </div>
+</div>
+
 <!-- Toast -->
 <div class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 z-50 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3" id="toast">
     <span class="material-symbols-outlined text-green-400" id="toastIcon">check_circle</span>
@@ -255,35 +339,19 @@
 
     // --- INITIALIZATION ---
     async function startApp() {
-        const loaderText = document.getElementById('loader-text');
-
-        setTimeout(() => {
-            const loader = document.getElementById('loader-overlay');
-            if(loader && loader.style.display !== 'none') {
-                document.getElementById('loader-content').classList.add('hidden');
-                document.getElementById('loader-error').classList.remove('hidden');
-                document.getElementById('loader-error').classList.add('flex');
-                document.getElementById('error-msg').innerText = "Connection timed out. Check network.";
-            }
-        }, 8000); 
-
         try {
-            loaderText.innerText = "Initializing Firebase...";
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
             auth = firebase.auth();
 
-            loaderText.innerText = "Authenticating...";
-            await auth.signInAnonymously();
-            
-            loaderText.innerText = "Ready!";
-            const params = new URLSearchParams(window.location.search);
-            if (params.get('session')) {
-                initSession(params.get('session'));
-            } else {
-                app.firebaseActions.loadAllSessions();
-            }
-
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    // Check user approval status
+                    checkUserApproval(user);
+                } else {
+                    showLogin();
+                }
+            });
         } catch (e) {
             console.error("Critical Startup Error", e);
             document.getElementById('error-msg').innerText = e.message;
@@ -292,69 +360,103 @@
             document.getElementById('loader-error').classList.add('flex');
         }
     }
+    
+    // --- AUTH LOGIC ---
+    async function checkUserApproval(user) {
+        const loaderText = document.getElementById('loader-text');
+        loaderText.innerText = "Checking Account Status...";
+        document.getElementById('loader-overlay').style.display = 'flex';
+        document.getElementById('auth-form').classList.add('hidden');
+        document.getElementById('register-form').classList.add('hidden');
+        document.getElementById('loader-content').classList.remove('hidden');
 
-    // --- LOGIC (RESTORED DETAILED DATA FROM V3.8) ---
-    const buffersData = {
-        stock1: {
-            id: "Stock1", name: "Stock 1: 2 M NaOH", chem: "NaOH", safety: "CORROSIVE", color: "purple", shelfLife: "1 Month",
-            precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% of final volume of Milli-Q water.", "<strong class='block mb-1'>Step 2:</strong> Stir to dissolve (Exothermic).", "<strong class='block mb-1'>Step 3:</strong> Adjust to final volume.", "<strong class='block mb-1'>Step 4:</strong> Store in plastic (PP/HDPE)."],
-            qc: { target: "> 13", unit: "" },
-            baseVol: 25,
-            ingredients: [{ name: "Milli-Q Water (Initial)", amount: 20, unit: "mL", type: "liquid" }, { name: "NaOH Pellets", amount: 2.0, unit: "g", type: "solid" }, { name: "Milli-Q Water (Top up)", amount: "to Vol", unit: "", type: "fill" }]
-        },
-        stock2: {
-            id: "Stock2", name: "Stock 2: 10% SDS", chem: "SDS", safety: "IRRITANT", color: "amber", shelfLife: "3 Months",
-            precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% of final volume of Milli-Q water.", "<strong class='block mb-1'>Step 2:</strong> Heat to 40-50°C to dissolve. DO NOT VORTEX.", "<strong class='block mb-1'>Step 3:</strong> Adjust to final volume.", "<strong class='block mb-1'>Step 4:</strong> Wear mask to avoid inhaling dust."],
-            qc: { target: "6.0 - 9.5", unit: "" },
-            baseVol: 25,
-            ingredients: [{ name: "Milli-Q Water (Initial)", amount: 20, unit: "mL", type: "liquid" }, { name: "SDS Powder", amount: 2.5, unit: "g", type: "solid" }, { name: "Milli-Q Water (Top up)", amount: "to Vol", unit: "", type: "fill" }]
-        },
-        p1: {
-            id: "P1", name: "Buffer P1: Resuspension", chem: "Tris-EDTA", safety: "Safe", color: "teal", shelfLife: "1 Month (4°C)",
-            precautions: ["<strong class='block mb-1'>Step 1:</strong> Dissolve Tris and EDTA in ~80% water.", "<strong class='block mb-1'>Step 2:</strong> Adjust pH to 8.0 (EDTA won't dissolve otherwise).", "<strong class='block mb-1'>Step 3:</strong> Adjust volume.", "<strong class='block mb-1'>Step 4:</strong> Filter sterilize (0.22 µm) and add RNAse A if required."],
-            qc: { target: "8.0 ± 0.1", unit: "" },
-            baseVol: 20,
-            ingredients: [{ name: "Milli-Q Water", amount: 15, unit: "mL", type: "liquid" }, { name: "Tris-HCl", amount: 0.158, unit: "g", type: "solid" }, { name: "EDTA Free Acid", amount: 0.058, unit: "g", type: "solid" }, { name: "2M NaOH", amount: "Drops", unit: "", type: "adj" }]
-        },
-        p3: {
-            id: "P3", name: "Buffer P3: Neutralization", chem: "K-Acetate", safety: "CORROSIVE", color: "rose", shelfLife: "3 Months (4°C)",
-            precautions: ["<strong class='block mb-1'>Step 1:</strong> Dissolve Potassium Acetate in water.", "<strong class='block mb-1'>Step 2:</strong> Adjust pH to 5.5 with Glacial Acetic Acid.", "<strong class='block mb-1'>Step 3:</strong> Adjust volume.", "<strong class='block mb-1'>Step 4:</strong> Rinse pH probe immediately."],
-            qc: { target: "5.5 ± 0.1", unit: "" },
-            baseVol: 20,
-            ingredients: [{ name: "Milli-Q Water", amount: 10, unit: "mL", type: "liquid" }, { name: "Potassium Acetate", amount: 5.89, unit: "g", type: "solid" }, { name: "Glacial Acetic Acid", amount: "Drops", unit: "", type: "adj" }]
-        },
-        p2: {
-            id: "P2", name: "Buffer P2: Lysis", chem: "NaOH/SDS", safety: "FRESH ONLY", color: "orange", shelfLife: "< 15 Mins",
-            precautions: ["<strong class='block mb-1'>Step 1:</strong> Mix Stock 1 and Water.", "<strong class='block mb-1'>Step 2:</strong> Add Stock 2 last to avoid precipitation.", "<strong class='block mb-1'>Step 3:</strong> Invert gently to mix. DO NOT VORTEX.", "<strong class='block mb-1'>Step 4:</strong> Use immediately."],
-            qc: { target: "> 12.5", unit: "" },
-            baseVol: 10,
-            ingredients: [{ name: "Stock 1 (2M NaOH)", amount: 1.0, unit: "mL", type: "liquid" }, { name: "Stock 2 (10% SDS)", amount: 1.0, unit: "mL", type: "liquid" }, { name: "Milli-Q Water", amount: 8.0, unit: "mL", type: "liquid" }]
-        },
-        lb: {
-            id: "LB", name: "LB Broth (Miller)", chem: "Rich Media", safety: "Biohazard Level 1", color: "lime", shelfLife: "Autoclaved",
-            precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% of final volume of Milli-Q water.", "<strong class='block mb-1'>Step 2:</strong> Stir to dissolve. (Optional: Adjust pH to 7.0).", "<strong class='block mb-1'>Step 3:</strong> Adjust to final volume.", "<strong class='block mb-1'>Step 4: Sterilization (Choose One):</strong><ul class='list-disc pl-4 mt-1'><li><em>Standard:</em> Autoclave at 121°C for 20 mins.</li><li><em>Alternative:</em> Filter sterilize through a 0.22 µm membrane.</li></ul>"],
-            qc: { target: "7.0 ± 0.2", unit: "" },
-            baseVol: 1000,
-            ingredients: [{ name: "Milli-Q Water", amount: 950, unit: "mL", type: "liquid" }, { name: "Tryptone", amount: 10, unit: "g", type: "solid" }, { name: "Yeast Extract", amount: 5, unit: "g", type: "solid" }, { name: "NaCl", amount: 10, unit: "g", type: "solid" }, { name: "Water (Top Up)", amount: "to Vol", unit: "", type: "fill" }]
-        },
-        tb: {
-            id: "TB", name: "Terrific Broth (TB)", chem: "Enriched Media", safety: "Biohazard Level 1", color: "emerald", shelfLife: "Autoclaved",
-            precautions: ["<strong class='block mb-1'>Step 1 (Base):</strong> Dissolve Tryptone, Yeast Ext, and Glycerol in 900mL water.", "<strong class='block mb-1'>Step 2 (Salts):</strong> Dissolve Phosphates (KH2PO4, K2HPO4) in 100mL water separately.", "<strong class='block mb-1'>Step 3: Sterilization:</strong> Autoclave OR Filter sterilize BOTH solutions separately.", "<strong class='block mb-1'>Step 4:</strong> Allow both to cool to < 60°C.", "<strong class='block mb-1'>Step 5:</strong> Aseptically mix the Salt solution into the Base solution."],
-            qc: { target: "7.2 ± 0.2", unit: "" },
-            baseVol: 1000,
-            ingredients: [{ name: "Tryptone", amount: 12, unit: "g", type: "solid" }, { name: "Yeast Extract", amount: 24, unit: "g", type: "solid" }, { name: "Glycerol", amount: 5, unit: "g", type: "solid" }, { name: "KH2PO4 (Phosphate Stock)", amount: 2.31, unit: "g", type: "solid" }, { name: "K2HPO4 (Phosphate Stock)", amount: 12.54, unit: "g", type: "solid" }, { name: "Total Water", amount: 1000, unit: "mL", type: "fill" }]
-        },
-        "2xyt": {
-            id: "2xYT", name: "2xYT Medium", chem: "Rich Media", safety: "Biohazard Level 1", color: "indigo", shelfLife: "Autoclaved",
-            precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% water.", "<strong class='block mb-1'>Step 2:</strong> Adjust pH to 7.0. Top up volume.", "<strong class='block mb-1'>Step 3: Sterilization (Choose One):</strong><ul class='list-disc pl-4 mt-1'><li><em>Standard:</em> Autoclave at 121°C for 20 mins.</li><li><em>Alternative:</em> Filter sterilize (0.22 µm) if needed.</li></ul>"],
-            qc: { target: "7.0 ± 0.2", unit: "" },
-            baseVol: 1000,
-            ingredients: [{ name: "Milli-Q Water", amount: 950, unit: "mL", type: "liquid" }, { name: "Tryptone", amount: 16, unit: "g", type: "solid" }, { name: "Yeast Extract", amount: 10, unit: "g", type: "solid" }, { name: "NaCl", amount: 5, unit: "g", type: "solid" }, { name: "Water (Top Up)", amount: "to Vol", unit: "", type: "fill" }]
+        try {
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            
+            if (!userDoc.exists) {
+                // Create doc if missing (e.g. first login)
+                await db.collection('users').doc(user.uid).set({
+                    email: user.email,
+                    approved: false, // Default to unapproved
+                    name: user.displayName || "Unknown",
+                    createdAt: new Date().toISOString()
+                });
+                showPending();
+            } else {
+                const userData = userDoc.data();
+                if (userData.approved) {
+                    // Load Dashboard
+                    document.getElementById('loader-overlay').style.display = 'none';
+                    app.firebaseActions.loadAllSessions();
+                } else {
+                    showPending();
+                }
+            }
+        } catch (e) {
+            console.error("Auth Check Error", e);
+            alert("Error checking account status. Try reloading.");
         }
+    }
+
+    function showLogin() {
+        document.getElementById('loader-content').classList.add('hidden');
+        document.getElementById('pending-screen').classList.add('hidden');
+        document.getElementById('register-form').classList.add('hidden');
+        document.getElementById('auth-form').classList.remove('hidden');
+    }
+
+    function showPending() {
+        document.getElementById('loader-content').classList.add('hidden');
+        document.getElementById('auth-form').classList.add('hidden');
+        document.getElementById('register-form').classList.add('hidden');
+        document.getElementById('pending-screen').classList.remove('hidden');
+    }
+
+    // --- LOGIC (DETAILED DATA) ---
+    const buffersData = {
+        stock1: { id: "Stock1", name: "Stock 1: 2 M NaOH", chem: "NaOH", safety: "CORROSIVE", color: "purple", shelfLife: "1 Month", precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% of final volume of Milli-Q water.", "<strong class='block mb-1'>Step 2:</strong> Stir to dissolve (Exothermic).", "<strong class='block mb-1'>Step 3:</strong> Adjust to final volume.", "<strong class='block mb-1'>Step 4:</strong> Store in plastic (PP/HDPE)."], qc: { target: "> 13", unit: "" }, baseVol: 25, ingredients: [{ name: "Milli-Q Water (Initial)", amount: 20, unit: "mL", type: "liquid" }, { name: "NaOH Pellets", amount: 2.0, unit: "g", type: "solid" }, { name: "Milli-Q Water (Top up)", amount: "to Vol", unit: "", type: "fill" }] },
+        stock2: { id: "Stock2", name: "Stock 2: 10% SDS", chem: "SDS", safety: "IRRITANT", color: "amber", shelfLife: "3 Months", precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% of final volume of Milli-Q water.", "<strong class='block mb-1'>Step 2:</strong> Heat to 40-50°C to dissolve. DO NOT VORTEX.", "<strong class='block mb-1'>Step 3:</strong> Adjust to final volume.", "<strong class='block mb-1'>Step 4:</strong> Wear mask to avoid inhaling dust."], qc: { target: "6.0 - 9.5", unit: "" }, baseVol: 25, ingredients: [{ name: "Milli-Q Water (Initial)", amount: 20, unit: "mL", type: "liquid" }, { name: "SDS Powder", amount: 2.5, unit: "g", type: "solid" }, { name: "Milli-Q Water (Top up)", amount: "to Vol", unit: "", type: "fill" }] },
+        p1: { id: "P1", name: "Buffer P1: Resuspension", chem: "Tris-EDTA", safety: "Safe", color: "teal", shelfLife: "1 Month (4°C)", precautions: ["<strong class='block mb-1'>Step 1:</strong> Dissolve Tris and EDTA in ~80% water.", "<strong class='block mb-1'>Step 2:</strong> Adjust pH to 8.0 (EDTA won't dissolve otherwise).", "<strong class='block mb-1'>Step 3:</strong> Adjust volume.", "<strong class='block mb-1'>Step 4:</strong> Filter sterilize (0.22 µm) and add RNAse A if required."], qc: { target: "8.0 ± 0.1", unit: "" }, baseVol: 20, ingredients: [{ name: "Milli-Q Water", amount: 15, unit: "mL", type: "liquid" }, { name: "Tris-HCl", amount: 0.158, unit: "g", type: "solid" }, { name: "EDTA Free Acid", amount: 0.058, unit: "g", type: "solid" }, { name: "2M NaOH", amount: "Drops", unit: "", type: "adj" }] },
+        p3: { id: "P3", name: "Buffer P3: Neutralization", chem: "K-Acetate", safety: "CORROSIVE", color: "rose", shelfLife: "3 Months (4°C)", precautions: ["<strong class='block mb-1'>Step 1:</strong> Dissolve Potassium Acetate in water.", "<strong class='block mb-1'>Step 2:</strong> Adjust pH to 5.5 with Glacial Acetic Acid.", "<strong class='block mb-1'>Step 3:</strong> Adjust volume.", "<strong class='block mb-1'>Step 4:</strong> Rinse pH probe immediately."], qc: { target: "5.5 ± 0.1", unit: "" }, baseVol: 20, ingredients: [{ name: "Milli-Q Water", amount: 10, unit: "mL", type: "liquid" }, { name: "Potassium Acetate", amount: 5.89, unit: "g", type: "solid" }, { name: "Glacial Acetic Acid", amount: "Drops", unit: "", type: "adj" }] },
+        p2: { id: "P2", name: "Buffer P2: Lysis", chem: "NaOH/SDS", safety: "FRESH ONLY", color: "orange", shelfLife: "< 15 Mins", precautions: ["<strong class='block mb-1'>Step 1:</strong> Mix Stock 1 and Water.", "<strong class='block mb-1'>Step 2:</strong> Add Stock 2 last to avoid precipitation.", "<strong class='block mb-1'>Step 3:</strong> Invert gently to mix. DO NOT VORTEX.", "<strong class='block mb-1'>Step 4:</strong> Use immediately."], qc: { target: "> 12.5", unit: "" }, baseVol: 10, ingredients: [{ name: "Stock 1 (2M NaOH)", amount: 1.0, unit: "mL", type: "liquid" }, { name: "Stock 2 (10% SDS)", amount: 1.0, unit: "mL", type: "liquid" }, { name: "Milli-Q Water", amount: 8.0, unit: "mL", type: "liquid" }] },
+        lb: { id: "LB", name: "LB Broth (Miller)", chem: "Rich Media", safety: "Biohazard Level 1", color: "lime", shelfLife: "Autoclaved", precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% of final volume of Milli-Q water.", "<strong class='block mb-1'>Step 2:</strong> Stir to dissolve. (Optional: Adjust pH to 7.0).", "<strong class='block mb-1'>Step 3:</strong> Adjust to final volume.", "<strong class='block mb-1'>Step 4: Sterilization (Choose One):</strong><ul class='list-disc pl-4 mt-1'><li><em>Standard:</em> Autoclave at 121°C for 20 mins.</li><li><em>Alternative:</em> Filter sterilize through a 0.22 µm membrane.</li></ul>"], qc: { target: "7.0 ± 0.2", unit: "" }, baseVol: 1000, ingredients: [{ name: "Milli-Q Water", amount: 950, unit: "mL", type: "liquid" }, { name: "Tryptone", amount: 10, unit: "g", type: "solid" }, { name: "Yeast Extract", amount: 5, unit: "g", type: "solid" }, { name: "NaCl", amount: 10, unit: "g", type: "solid" }, { name: "Water (Top Up)", amount: "to Vol", unit: "", type: "fill" }] },
+        tb: { id: "TB", name: "Terrific Broth (TB)", chem: "Enriched Media", safety: "Biohazard Level 1", color: "emerald", shelfLife: "Autoclaved", precautions: ["<strong class='block mb-1'>Step 1 (Base):</strong> Dissolve Tryptone, Yeast Ext, and Glycerol in 900mL water.", "<strong class='block mb-1'>Step 2 (Salts):</strong> Dissolve Phosphates (KH2PO4, K2HPO4) in 100mL water separately.", "<strong class='block mb-1'>Step 3: Sterilization:</strong> Autoclave OR Filter sterilize BOTH solutions separately.", "<strong class='block mb-1'>Step 4:</strong> Allow both to cool to < 60°C.", "<strong class='block mb-1'>Step 5:</strong> Aseptically mix the Salt solution into the Base solution."], qc: { target: "7.2 ± 0.2", unit: "" }, baseVol: 1000, ingredients: [{ name: "Tryptone", amount: 12, unit: "g", type: "solid" }, { name: "Yeast Extract", amount: 24, unit: "g", type: "solid" }, { name: "Glycerol", amount: 5, unit: "g", type: "solid" }, { name: "KH2PO4 (Phosphate Stock)", amount: 2.31, unit: "g", type: "solid" }, { name: "K2HPO4 (Phosphate Stock)", amount: 12.54, unit: "g", type: "solid" }, { name: "Total Water", amount: 1000, unit: "mL", type: "fill" }] },
+        "2xyt": { id: "2xYT", name: "2xYT Medium", chem: "Rich Media", safety: "Biohazard Level 1", color: "indigo", shelfLife: "Autoclaved", precautions: ["<strong class='block mb-1'>Step 1:</strong> Measure and add ingredients to ~90% water.", "<strong class='block mb-1'>Step 2:</strong> Adjust pH to 7.0. Top up volume.", "<strong class='block mb-1'>Step 3: Sterilization (Choose One):</strong><ul class='list-disc pl-4 mt-1'><li><em>Standard:</em> Autoclave at 121°C for 20 mins.</li><li><em>Alternative:</em> Filter sterilize (0.22 µm) if needed.</li></ul>"], qc: { target: "7.0 ± 0.2", unit: "" }, baseVol: 1000, ingredients: [{ name: "Milli-Q Water", amount: 950, unit: "mL", type: "liquid" }, { name: "Tryptone", amount: 16, unit: "g", type: "solid" }, { name: "Yeast Extract", amount: 10, unit: "g", type: "solid" }, { name: "NaCl", amount: 5, unit: "g", type: "solid" }, { name: "Water (Top Up)", amount: "to Vol", unit: "", type: "fill" }] }
     };
 
     window.app = {
         state: { activeSession: null, currentBufferKey: null, allSessions: [], selectedSessions: new Set(), unlockedEntryId: null, pendingEntry: null },
+        auth: {
+            login: async () => {
+                const email = document.getElementById('login-email').value;
+                const pass = document.getElementById('login-pass').value;
+                try { await auth.signInWithEmailAndPassword(email, pass); } catch(e) { alert(e.message); }
+            },
+            register: async () => {
+                const email = document.getElementById('reg-email').value;
+                const pass = document.getElementById('reg-pass').value;
+                const name = document.getElementById('reg-name').value;
+                try { 
+                    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+                    // Create user doc immediately
+                    await db.collection('users').doc(cred.user.uid).set({
+                        email: email,
+                        name: name,
+                        approved: false, // ADMIN MUST APPROVE
+                        createdAt: new Date().toISOString()
+                    });
+                    // Reload page to trigger auth check
+                    location.reload();
+                } catch(e) { alert(e.message); }
+            },
+            logout: () => auth.signOut(),
+            toggleView: (view) => {
+                document.getElementById('auth-form').classList.add('hidden');
+                document.getElementById('register-form').classList.add('hidden');
+                if(view==='login') document.getElementById('auth-form').classList.remove('hidden');
+                else document.getElementById('register-form').classList.remove('hidden');
+            }
+        },
         utils: {
             generateId: () => Math.random().toString(36).substr(2, 9),
             getBatchCode: (op, date, bId) => `${op.toUpperCase()}-${date.replace(/-/g, '')}-${bId}`,
@@ -497,6 +599,9 @@
             clearSelection: () => { app.state.selectedSessions.clear(); document.querySelectorAll('.session-checkbox').forEach(c => c.checked=false); app.views.updateBulkActionUI(); },
             calculate: (key) => {
                 const b = buffersData[key], tVol = parseFloat(document.getElementById('targetVol').value)||0, ratio = tVol/b.baseVol;
+                // UPDATE TARGET VOL DISPLAY
+                document.getElementById('target_vol_display').innerText = tVol;
+                
                 if(key==='p2') {
                     document.getElementById('calc_target_0').innerText = (tVol*0.1).toFixed(3); document.getElementById('calc_target_1').innerText = (tVol*0.1).toFixed(3); document.getElementById('calc_target_2').innerText = (tVol*0.8).toFixed(3);
                 } else {
@@ -527,7 +632,7 @@
                 const nav = document.getElementById('bufferNav'); if(nav) nav.classList.add('opacity-50','pointer-events-none');
                 const btn2 = document.getElementById('shareSessionBtn'); if(btn2) btn2.classList.add('hidden');
 
-                // Manually Restore Main Container Skeleton for Dashboard
+                // Restore Dashboard Skeleton
                 document.getElementById('mainContainer').innerHTML = `
                 <div class="max-w-5xl mx-auto fade-in" id="dashboardView">
                     <div class="flex justify-between items-center mb-6">
@@ -585,6 +690,9 @@
                 const disabled = locked ? 'disabled' : '';
                 const btn = locked ? `<button onclick="app.firebaseActions.unlockEntry('${exist.entryId}')" class="bg-amber-600 text-white px-6 py-2 rounded font-bold shadow">Unlock</button>` : `<button onclick="app.firebaseActions.prepareEntryForSave()" class="bg-slate-900 text-white px-6 py-2 rounded font-bold shadow">Save</button>`;
                 
+                // TARGET VALUE DISPLAY LOGIC ADDED
+                const tVal = exist ? exist.targetVol : b.baseVol;
+
                 let rows = '';
                 if(b.id==='P2') {
                     rows = `
@@ -607,7 +715,7 @@
                     <div class="grid lg:grid-cols-12 gap-6">
                         <div class="lg:col-span-4 space-y-4">
                             <div class="bg-white p-5 border rounded shadow-sm">
-                                <label class="text-xs font-bold text-slate-500">Target Vol (mL)</label><input type="number" id="targetVol" ${disabled} value="${exist?exist.targetVol:b.baseVol}" class="w-full text-3xl font-bold border-b-2 border-blue-200 outline-none bg-transparent" oninput="app.actions.calculate('${key}')">
+                                <label class="text-xs font-bold text-slate-500">Target Vol (mL)</label><input type="number" id="targetVol" ${disabled} value="${tVal}" class="w-full text-3xl font-bold border-b-2 border-blue-200 outline-none bg-transparent" oninput="app.actions.calculate('${key}')">
                                 <label class="text-xs font-bold text-slate-500 mt-4 block">Operator</label><input type="text" id="bufferOperator" ${disabled} value="${exist?exist.operator:s.defaultOperator}" maxlength="3" class="w-full text-lg font-bold uppercase font-mono border-b-2 outline-none bg-transparent" oninput="app.actions.updateLiveBatchCode()">
                             </div>
                             <div class="bg-amber-50 border border-amber-200 p-4 rounded text-xs text-amber-900">
@@ -621,7 +729,10 @@
                             <div class="p-6 space-y-6 flex-1">
                                 <div><h4 class="font-bold border-b pb-1 mb-2">Recipe / Ingredients</h4>${rows}</div>
                                 <div class="grid grid-cols-3 gap-4">
-                                    <div><label class="text-xs font-bold">Final Vol (mL)</label><input id="finalVol" type="number" ${disabled} class="w-full border rounded p-2" value="${exist?.finalVol||''}"></div>
+                                    <div>
+                                        <label class="text-xs font-bold">Final Vol (mL) <span class="text-blue-600 font-normal">(Target: <span id="target_vol_display">${tVal}</span>)</span></label>
+                                        <input id="finalVol" type="number" ${disabled} class="w-full border rounded p-2" value="${exist?.finalVol||''}">
+                                    </div>
                                     <div><label class="text-xs font-bold">pH (Target: ${b.qc.target})</label><input id="measuredPh" type="number" step="0.01" ${disabled} class="w-full border rounded p-2" value="${exist?.ph||''}"></div>
                                     <div><label class="text-xs font-bold">Cond/Other</label><input id="measuredCond" type="text" ${disabled} class="w-full border rounded p-2" value="${exist?.cond||''}"></div>
                                 </div>
@@ -635,6 +746,56 @@
                 app.actions.calculate(key);
                 if(!exist) app.actions.updateLiveBatchCode();
             }
+        },
+        openUserModal: async () => {
+            if (prompt("Enter Admin Password:") !== ADMIN_PASSWORD) return app.utils.showToast("Access Denied", "error");
+            
+            document.getElementById('userModal').classList.remove('hidden');
+            const container = document.getElementById('userListContainer');
+            container.innerHTML = '<div class="p-6 text-center text-slate-400">Loading users...</div>';
+            
+            try {
+                const snap = await db.collection('users').get();
+                if (snap.empty) {
+                    container.innerHTML = '<div class="p-6 text-center text-slate-400">No users found.</div>';
+                    return;
+                }
+                
+                let html = '';
+                snap.forEach(doc => {
+                    const u = doc.data();
+                    const statusColor = u.approved ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800';
+                    const statusText = u.approved ? 'Approved' : 'Pending';
+                    const btn = u.approved ? '' : `<button onclick="app.views.approveUser('${doc.id}')" class="text-blue-600 text-sm font-bold hover:underline">Approve</button>`;
+                    
+                    html += `
+                        <div class="flex justify-between items-center p-4 border-b border-slate-100 hover:bg-slate-50">
+                            <div>
+                                <div class="font-bold text-slate-800">${u.name}</div>
+                                <div class="text-xs text-slate-500">${u.email}</div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <span class="px-2 py-1 rounded text-xs font-bold ${statusColor}">${statusText}</span>
+                                ${btn}
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<div class="p-6 text-center text-red-400">Error loading users.</div>';
+            }
+        },
+        closeUserModal: () => document.getElementById('userModal').classList.add('hidden'),
+        approveUser: async (uid) => {
+            try {
+                await db.collection('users').doc(uid).update({ approved: true });
+                app.utils.showToast("User Approved");
+                app.views.openUserModal(); // Refresh list (admin has pass already entered this session context technically, but simple re-open triggers prompt again which is secure, or we can modify logic. For now, user clicks button again.)
+                // Actually, let's just reload the modal content without prompt
+                // Re-using logic inside openUserModal without prompt check is cleaner but I'll leave it simple: close and re-open is safe.
+                document.getElementById('userModal').classList.add('hidden');
+            } catch(e) { app.utils.showToast("Error approving", "error"); }
         }
     };
 
