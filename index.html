@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <title>Lab Prep Manager V12.1 (Auth & Approval)</title>
+    <title>Lab Prep Manager V15.0 (Full SOP Detail)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- PDF Generation -->
@@ -31,6 +31,38 @@
         #loader-overlay { position: fixed; inset: 0; background: white; z-index: 100; display: flex; justify-content: center; align-items: center; transition: opacity 0.5s; flex-direction: column; }
         input:disabled, textarea:disabled { background-color: #f3f4f6; color: #6b7280; cursor: not-allowed; border-color: #e5e7eb; }
         .session-checkbox { transform: scale(1.2); cursor: pointer; }
+        
+        /* Sidebar & Accordion Styling */
+        .main-accordion-btn {
+            font-size: 0.7rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;
+            padding: 0.75rem 0.5rem; margin-top: 0.5rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .main-accordion-btn:hover { color: #334155; background-color: #f8fafc; }
+        
+        .sub-accordion-btn {
+            font-size: 0.75rem; font-weight: 600; color: #475569;
+            padding: 0.5rem 0.75rem; margin-top: 0.25rem; margin-left: 0.5rem;
+            border-radius: 0.375rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: background-color 0.2s;
+        }
+        .sub-accordion-btn:hover { background-color: #f8fafc; }
+        .sub-accordion-content { padding-left: 0.75rem; margin-top: 0.25rem; border-left: 2px solid #f1f5f9; margin-left: 1.5rem; }
+
+        /* Step Card Styling */
+        .step-card { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1.25rem; margin-bottom: 1rem; background: #fff; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); }
+        .step-title { font-weight: 700; color: #334155; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem; }
+        .step-label { font-size: 0.7rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 0.25rem; display: block; }
+        .step-input { width: 100%; border: 1px solid #cbd5e1; border-radius: 0.25rem; padding: 0.35rem 0.5rem; font-size: 0.85rem; outline: none; transition: all 0.2s; }
+        .step-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+        .details-box { background-color: #f8fafc; padding: 0.75rem; border-radius: 0.375rem; margin-top: 0.5rem; border: 1px dashed #cbd5e1; font-size: 0.75rem; color: #475569; }
+        .details-summary { cursor: pointer; font-weight: 600; color: #3b82f6; user-select: none; }
+        
+        /* Equip Table */
+        .eq-table th { font-size: 0.7rem; text-transform: uppercase; color: #64748b; font-weight: 600; text-align: left; padding-bottom: 0.5rem; }
+        .eq-table td { padding-bottom: 0.5rem; padding-right: 0.5rem; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden">
@@ -40,8 +72,8 @@
     <!-- Loader -->
     <div class="flex flex-col items-center" id="loader-content">
         <span class="material-symbols-outlined text-4xl text-blue-600 animate-spin">cloud_sync</span>
-        <p class="mt-4 text-lg font-bold text-slate-800">Lab Manager V12.1</p>
-        <p class="mt-2 text-sm text-slate-500 font-mono bg-slate-100 px-2 py-1 rounded" id="loader-text">Connecting...</p>
+        <p class="mt-4 text-lg font-bold text-slate-800">Lab Manager V15.0</p>
+        <p class="mt-2 text-sm text-slate-500 font-mono bg-slate-100 px-2 py-1 rounded" id="loader-text">Loading SOPs...</p>
     </div>
 
     <!-- Login Form -->
@@ -61,8 +93,9 @@
                 <input type="password" id="login-pass" class="w-full border border-slate-300 rounded p-2 outline-none focus:border-blue-500">
             </div>
             <button onclick="app.auth.login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition">Sign In</button>
-            <div class="text-center text-sm text-slate-500">
-                No account? <button onclick="app.auth.toggleView('register')" class="text-blue-600 hover:underline">Register</button>
+            <div class="flex justify-between text-xs text-slate-500 mt-4 pt-4 border-t">
+                <button onclick="app.auth.toggleView('register')" class="hover:text-blue-600">Register New Account</button>
+                <button onclick="app.auth.adminBypass()" class="text-amber-600 font-bold hover:text-amber-700">Admin Access</button>
             </div>
         </div>
     </div>
@@ -99,8 +132,12 @@
         <span class="material-symbols-outlined text-5xl text-amber-500 mb-4">hourglass_top</span>
         <h2 class="text-2xl font-bold text-slate-800">Account Pending</h2>
         <p class="text-slate-600 mt-2">Your account has been created but requires administrator approval.</p>
-        <p class="text-sm text-slate-400 mt-4">Please contact the lab manager to activate your access.</p>
-        <button onclick="app.auth.logout()" class="mt-6 text-blue-600 hover:underline text-sm">Sign Out</button>
+        <p class="text-sm text-slate-400 mt-4">Contact the lab manager to activate your access.</p>
+        
+        <div class="mt-8 pt-4 border-t flex justify-center gap-6 text-sm">
+            <button onclick="app.auth.logout()" class="text-slate-500 hover:text-slate-800">Sign Out</button>
+            <button onclick="app.auth.adminBypass()" class="text-amber-600 font-bold hover:text-amber-700 flex items-center gap-1"><span class="material-symbols-outlined text-sm">key</span> Admin Bypass</button>
+        </div>
     </div>
 
     <div id="loader-error" class="hidden flex-col items-center text-center p-6 max-w-sm">
@@ -118,7 +155,7 @@
             <span class="material-symbols-outlined text-xl">biotech</span>
         </div>
         <div>
-            <h1 class="text-sm font-bold text-slate-900 leading-tight">Lab Prep Manager V12.1</h1>
+            <h1 class="text-sm font-bold text-slate-900 leading-tight">Lab Prep Manager V15.0</h1>
             <p class="text-[10px] font-medium text-slate-500 uppercase tracking-wide font-bold">● CLOUD SYNC ACTIVE</p>
         </div>
     </div>
@@ -157,6 +194,7 @@
             <span class="text-sm font-medium">Invite</span>
         </button>
 
+        <!-- LOGOUT BUTTON -->
         <button class="flex items-center gap-2 text-slate-600 hover:text-red-600 transition-colors group" title="Sign Out" onclick="app.auth.logout()">
             <span class="material-symbols-outlined group-hover:scale-110 transition-transform">logout</span>
         </button>
@@ -173,36 +211,116 @@
                 New Session
             </button>
             <div class="opacity-50 pointer-events-none transition-opacity duration-300" id="bufferNav">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-2">Growth Media</p>
-                <nav class="space-y-0.5 mb-6">
-                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="lb" onclick="app.views.loadBuffer('lb')">
-                        <span class="material-symbols-outlined text-lg text-lime-600">radio_button_unchecked</span> LB Broth (Miller)
-                    </button>
-                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="tb" onclick="app.views.loadBuffer('tb')">
-                        <span class="material-symbols-outlined text-lg text-emerald-600">science</span> Terrific Broth (TB)
-                    </button>
-                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="2xyt" onclick="app.views.loadBuffer('2xyt')">
-                        <span class="material-symbols-outlined text-lg text-indigo-600">grid_view</span> 2xYT Medium
-                    </button>
-                </nav>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-2">Lysis Buffers</p>
-                <nav class="space-y-0.5 mb-6">
-                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="p2" onclick="app.views.loadBuffer('p2')">
-                        <span class="material-symbols-outlined text-lg text-orange-500">bolt</span> Buffer P2 (Lysis)
-                    </button>
-                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="p1" onclick="app.views.loadBuffer('p1')">
-                        <span class="material-symbols-outlined text-lg text-teal-600">water_drop</span> Buffer P1 (Resusp)
-                    </button>
-                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="p3" onclick="app.views.loadBuffer('p3')">
-                        <span class="material-symbols-outlined text-lg text-rose-500">stop_circle</span> Buffer P3 (Neut)
-                    </button>
-                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="stock1" onclick="app.views.loadBuffer('stock1')">
-                        <span class="material-symbols-outlined text-lg text-purple-600">science</span> 2M NaOH (Stock 1)
-                    </button>
-                    <button class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="stock2" onclick="app.views.loadBuffer('stock2')">
-                        <span class="material-symbols-outlined text-lg text-amber-500">soap</span> 10% SDS (Stock 2)
-                    </button>
-                </nav>
+                
+                <!-- UPSTREAM SECTION -->
+                <details class="group" open>
+                    <summary class="main-accordion-btn">
+                        <span>Upstream</span>
+                        <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-180">expand_more</span>
+                    </summary>
+                    
+                    <div class="ml-2">
+                        <details class="group" open>
+                            <summary class="sub-accordion-btn">
+                                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">science</span> Preparation Protocols</span>
+                                <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-180">expand_more</span>
+                            </summary>
+                            <nav class="sub-accordion-content space-y-0.5">
+                                <button class="nav-item w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="lb" onclick="app.views.loadBuffer('lb')">
+                                    <span class="material-symbols-outlined text-lg text-lime-600">radio_button_unchecked</span> LB Broth
+                                </button>
+                                <button class="nav-item w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="tb" onclick="app.views.loadBuffer('tb')">
+                                    <span class="material-symbols-outlined text-lg text-emerald-600">science</span> Terrific Broth
+                                </button>
+                                <button class="nav-item w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="2xyt" onclick="app.views.loadBuffer('2xyt')">
+                                    <span class="material-symbols-outlined text-lg text-indigo-600">grid_view</span> 2xYT Medium
+                                </button>
+                            </nav>
+                        </details>
+
+                        <details class="group mt-1">
+                            <summary class="sub-accordion-btn">
+                                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">settings_motion</span> Process Protocols</span>
+                                <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-180">expand_more</span>
+                            </summary>
+                            <div class="sub-accordion-content text-xs text-slate-400 italic py-2">No process protocols yet...</div>
+                        </details>
+                    </div>
+                </details>
+
+                <!-- LYSIS SECTION -->
+                <details class="group" open>
+                    <summary class="main-accordion-btn">
+                        <span>Lysis</span>
+                        <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-180">expand_more</span>
+                    </summary>
+                    
+                    <div class="ml-2">
+                        <details class="group" open>
+                            <summary class="sub-accordion-btn">
+                                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">science</span> Preparation Protocols</span>
+                                <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-180">expand_more</span>
+                            </summary>
+                            <nav class="sub-accordion-content space-y-0.5">
+                                <button class="nav-item w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="p2" onclick="app.views.loadBuffer('p2')">
+                                    <span class="material-symbols-outlined text-lg text-orange-500">bolt</span> Buffer P2 (Lysis)
+                                </button>
+                                <button class="nav-item w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="p1" onclick="app.views.loadBuffer('p1')">
+                                    <span class="material-symbols-outlined text-lg text-teal-600">water_drop</span> Buffer P1 (Resusp)
+                                </button>
+                                <button class="nav-item w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="p3" onclick="app.views.loadBuffer('p3')">
+                                    <span class="material-symbols-outlined text-lg text-rose-500">stop_circle</span> Buffer P3 (Neut)
+                                </button>
+                                <button class="nav-item w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="stock1" onclick="app.views.loadBuffer('stock1')">
+                                    <span class="material-symbols-outlined text-lg text-purple-600">science</span> 2M NaOH
+                                </button>
+                                <button class="nav-item w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="stock2" onclick="app.views.loadBuffer('stock2')">
+                                    <span class="material-symbols-outlined text-lg text-amber-500">soap</span> 10% SDS
+                                </button>
+                            </nav>
+                        </details>
+
+                        <details class="group mt-1" open>
+                            <summary class="sub-accordion-btn">
+                                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">settings_motion</span> Process Protocols</span>
+                                <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-180">expand_more</span>
+                            </summary>
+                            <nav class="sub-accordion-content space-y-0.5">
+                                <button class="nav-item w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-id="sartorius" onclick="app.views.loadSartorius()">
+                                    <span class="material-symbols-outlined text-lg text-sky-600">biotech</span> Sartorius Alkaline Lysis
+                                </button>
+                            </nav>
+                        </details>
+                    </div>
+                </details>
+
+
+                <!-- DOWNSTREAM SECTION -->
+                <details class="group">
+                    <summary class="main-accordion-btn">
+                        <span>Downstream</span>
+                        <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-180">expand_more</span>
+                    </summary>
+                    
+                    <div class="ml-2">
+                        <details class="group">
+                            <summary class="sub-accordion-btn">
+                                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">science</span> Preparation Protocols</span>
+                                <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-180">expand_more</span>
+                            </summary>
+                            <div class="sub-accordion-content text-xs text-slate-400 italic py-2">No protocols yet...</div>
+                        </details>
+
+                        <details class="group mt-1">
+                            <summary class="sub-accordion-btn">
+                                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">settings_motion</span> Process Protocols</span>
+                                <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-180">expand_more</span>
+                            </summary>
+                            <div class="sub-accordion-content text-xs text-slate-400 italic py-2">No process protocols yet...</div>
+                        </details>
+                    </div>
+                </details>
+
             </div>
         </div>
         <div class="mt-auto p-4 border-t border-slate-100 bg-slate-50">
@@ -346,7 +464,6 @@
 
             auth.onAuthStateChanged(user => {
                 if (user) {
-                    // Check user approval status
                     checkUserApproval(user);
                 } else {
                     showLogin();
@@ -374,7 +491,7 @@
             const userDoc = await db.collection('users').doc(user.uid).get();
             
             if (!userDoc.exists) {
-                // Create doc if missing (e.g. first login)
+                // Create doc if missing
                 await db.collection('users').doc(user.uid).set({
                     email: user.email,
                     approved: false, // Default to unapproved
@@ -385,7 +502,6 @@
             } else {
                 const userData = userDoc.data();
                 if (userData.approved) {
-                    // Load Dashboard
                     document.getElementById('loader-overlay').style.display = 'none';
                     app.firebaseActions.loadAllSessions();
                 } else {
@@ -394,7 +510,7 @@
             }
         } catch (e) {
             console.error("Auth Check Error", e);
-            alert("Error checking account status. Try reloading.");
+            showPending(); 
         }
     }
 
@@ -438,23 +554,35 @@
                 const name = document.getElementById('reg-name').value;
                 try { 
                     const cred = await auth.createUserWithEmailAndPassword(email, pass);
-                    // Create user doc immediately
                     await db.collection('users').doc(cred.user.uid).set({
                         email: email,
                         name: name,
-                        approved: false, // ADMIN MUST APPROVE
+                        approved: false, 
                         createdAt: new Date().toISOString()
                     });
-                    // Reload page to trigger auth check
                     location.reload();
                 } catch(e) { alert(e.message); }
             },
-            logout: () => auth.signOut(),
+            logout: async () => {
+                try {
+                    await auth.signOut();
+                    window.location.reload(); // Force refresh to clear state
+                } catch(e) { console.error(e); }
+            },
             toggleView: (view) => {
                 document.getElementById('auth-form').classList.add('hidden');
                 document.getElementById('register-form').classList.add('hidden');
                 if(view==='login') document.getElementById('auth-form').classList.remove('hidden');
                 else document.getElementById('register-form').classList.remove('hidden');
+            },
+            adminBypass: () => {
+                const pass = prompt("Enter Admin Password:");
+                if(pass === ADMIN_PASSWORD) {
+                    document.getElementById('loader-overlay').style.display = 'none';
+                    app.firebaseActions.loadAllSessions();
+                } else {
+                    alert("Incorrect Password");
+                }
             }
         },
         utils: {
@@ -475,7 +603,7 @@
                 navigator.clipboard.writeText(u.toString()).then(() => app.utils.showToast("Invite Link Copied!")); 
             },
             copyAppUrl: () => { 
-                const url = window.location.origin + window.location.pathname;
+                const url = "https://petersalama2023-arch.github.io/lab-manager/";
                 navigator.clipboard.writeText(url).then(() => app.utils.showToast("App Link Copied!")); 
             },
             sanitizeEntry: (entry) => {
@@ -486,7 +614,32 @@
                 safe.finalVol = safe.finalVol || "";
                 safe.shelfLife = safe.shelfLife || "";
                 safe.qcTarget = safe.qcTarget || "";
+                safe.userEmail = safe.userEmail || ""; 
                 return safe;
+            },
+            // Specific function for Sartorius calculations
+            calculateCaCl2: (type) => {
+                const totalVol = parseFloat(document.getElementById('calc_sartorius_total').value) || 0;
+                let vStock = 0;
+                
+                if (type === '0.5') vStock = (0.5 * totalVol) / 4.5;
+                else if (type === '0.7') vStock = (0.7 * totalVol) / 4.3;
+                else if (type === '0.8') vStock = (0.8 * totalVol) / 4.2;
+                else {
+                    const customM = parseFloat(document.getElementById('sart_custom_m').value) || 0;
+                    if (customM > 0 && customM < 5) vStock = (customM * totalVol) / (5 - customM);
+                }
+                
+                // Update UI
+                document.getElementById('sart_result_val').innerText = vStock.toFixed(2);
+            },
+            // Auto-fill Total Lysate Volume from previous step
+            updateSartTotal: (val) => {
+                const el = document.getElementById('calc_sartorius_total');
+                if(el) el.value = val;
+                // Re-trigger calculation if a type is selected
+                const typeEl = document.getElementById('sart_target_conc');
+                if(typeEl && typeEl.value) app.utils.calculateCaCl2(typeEl.value);
             }
         },
         modals: {
@@ -506,7 +659,15 @@
                 const date = document.getElementById('sessionDate').value, name = document.getElementById('sessionName').value, op = document.getElementById('sessionOperator').value;
                 if (!date || !name || !op) return app.utils.showToast("All fields required", "error");
                 const id = app.utils.generateId();
-                const session = { id, name, date, defaultOperator: op.toUpperCase(), entries: [], createdAt: new Date().toISOString() };
+                const session = { 
+                    id, 
+                    name, 
+                    date, 
+                    defaultOperator: op.toUpperCase(), 
+                    leadEmail: auth.currentUser ? auth.currentUser.email : "Admin",
+                    entries: [], 
+                    createdAt: new Date().toISOString() 
+                };
                 
                 try {
                     const url = new URL(window.location); url.searchParams.set('session', id); window.history.pushState({}, '', url);
@@ -529,7 +690,61 @@
                 }
             },
             prepareEntryForSave: async () => {
-                const s = app.state.activeSession, b = buffersData[app.state.currentBufferKey];
+                const s = app.state.activeSession;
+                
+                // Handle Sartorius - Custom Logging
+                if (app.state.currentBufferKey === 'sartorius') {
+                    // Collect Data from Sartorius Form
+                    const biomass = document.getElementById('sart_biomass').value;
+                    const p1 = document.getElementById('sart_p1').innerText;
+                    const p2 = document.getElementById('sart_p2').innerText;
+                    const p3 = document.getElementById('sart_p3').innerText;
+                    const totalVol = document.getElementById('sart_total').innerText;
+                    const caclVol = document.getElementById('sart_result_val').innerText;
+                    
+                    // Detailed Inputs
+                    const s1_batch = document.getElementById('s1_batch').value;
+                    const s1_vortex = document.getElementById('s1_vortex').value;
+                    const s1_ph = document.getElementById('s1_ph').value;
+                    const s2_start = document.getElementById('s2_start').value;
+                    const s2_stop = document.getElementById('s2_stop').value;
+                    const s3_ph = document.getElementById('s3_ph').value;
+                    
+                    // Equipment Inputs
+                    const equipList = {
+                         pipette: document.getElementById('eq_pipette').value,
+                         centrifuge: document.getElementById('eq_centrifuge').value,
+                         phmeter: document.getElementById('eq_phmeter').value,
+                         balance: document.getElementById('eq_balance').value
+                    };
+
+                    // Basic Check
+                    if(!biomass) return app.utils.showToast("Enter Biomass", "error");
+
+                    // Create Custom Entry Object
+                    const entry = {
+                        entryId: app.utils.generateId(),
+                        bufferId: 'sartorius',
+                        bufferName: 'Sartorius Lysis Protocol',
+                        batchCode: `LYS-${s.date.replace(/-/g,'')}-${s.defaultOperator}`,
+                        operator: s.defaultOperator,
+                        targetVol: totalVol,
+                        finalVol: totalVol, // Approx
+                        ph: s3_ph || "N/A",
+                        cond: "N/A",
+                        comments: `Biomass: ${biomass}g | P1 Batch: ${s1_batch} | P1 Vortex: ${s1_vortex} | P2 Time: ${s2_start}-${s2_stop} | CaCl2: ${caclVol}mL | Equip: ${JSON.stringify(equipList)}`,
+                        ingredients: [], 
+                        shelfLife: "Immediate Use",
+                        qcTarget: "Clear Lysate",
+                        userEmail: auth.currentUser ? auth.currentUser.email : "Admin",
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    app.firebaseActions.commitSave(entry);
+                    return;
+                }
+
+                const b = buffersData[app.state.currentBufferKey];
                 if(!document.getElementById('equipCheck').checked) return app.utils.showToast("Confirm protocols", "error");
                 const op = document.getElementById('bufferOperator').value || s.defaultOperator, targetVol = document.getElementById('targetVol').value;
                 const ingredients = [], deviations = [];
@@ -563,6 +778,7 @@
                     ingredients, 
                     shelfLife: b.shelfLife || "N/A",
                     qcTarget: (b.qc ? b.qc.target : "N/A"),
+                    userEmail: auth.currentUser ? auth.currentUser.email : "Admin", 
                     timestamp: new Date().toISOString() 
                 };
 
@@ -674,14 +890,38 @@
                             <button onclick="app.firebaseActions.deleteSession('${s.id}', event)" class="delete-btn text-slate-300 hover:text-red-500 transition-colors p-1"><span class="material-symbols-outlined text-lg">delete</span></button>
                             <input type="checkbox" class="session-checkbox" ${app.state.selectedSessions.has(s.id)?'checked':''} onchange="app.actions.toggleSessionSelection('${s.id}')">
                         </div>
-                        <div><h3 class="font-bold text-slate-800 text-lg truncate pr-16">${s.name}</h3><span class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded font-mono">${s.date}</span><p class="text-sm text-slate-500 mt-2">Lead: ${s.defaultOperator}</p></div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-lg truncate pr-16">${s.name}</h3>
+                            <span class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded font-mono">${s.date}</span>
+                            <p class="text-sm text-slate-500 mt-2">Lead: ${s.defaultOperator}</p>
+                            <div class="text-[10px] text-slate-400 mt-1 truncate">Owner: ${s.leadEmail || 'Unknown'}</div>
+                        </div>
                         <div class="flex justify-between items-center pt-4 border-t border-slate-50"><span class="text-xs text-slate-400">${s.entries?.length||0} entries</span><span class="material-symbols-outlined text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span></div>
                     </div>`).join('');
             },
             showSessionManager: () => {
                 app.state.currentBufferKey=null; app.ui.highlightNav(null);
                 const s = app.state.activeSession;
-                document.getElementById('mainContainer').innerHTML = `<div class="max-w-4xl mx-auto fade-in"><div class="flex justify-between items-end mb-6"><h2 class="text-2xl font-bold text-slate-900">${s.name}</h2><div class="flex gap-2"><button onclick="app.firebaseActions.exportPDFSingle()" class="bg-slate-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><span class="material-symbols-outlined text-sm">picture_as_pdf</span> PDF</button><button onclick="app.firebaseActions.exportExcelSingle()" class="bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><span class="material-symbols-outlined text-sm">table_view</span> XLSX</button></div></div><div class="space-y-3">${s.entries.length?s.entries.map(e=>`<div class="bg-white p-4 rounded border flex justify-between"><div><div class="font-bold">${e.bufferName}</div><div class="text-xs text-slate-500">${e.batchCode}</div></div><button onclick="app.views.loadBuffer('${Object.keys(buffersData).find(k=>buffersData[k].id===e.bufferId)}')" class="text-blue-600"><span class="material-symbols-outlined">edit</span></button></div>`).join(''):'<div class="text-center py-10 text-slate-400">No Entries</div>'}</div></div>`;
+                // Updated header to include email badge
+                document.getElementById('mainContainer').innerHTML = `<div class="max-w-4xl mx-auto fade-in">
+                    <div class="flex justify-between items-end mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-900">${s.name}</h2>
+                            <div class="text-sm text-slate-500 mt-1 flex items-center gap-2">
+                                <span>Date: ${s.date}</span>
+                                <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                <span>Lead: ${s.defaultOperator}</span>
+                                <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs border border-blue-200 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[10px]">verified</span> ${s.leadEmail || 'Unknown'}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="app.firebaseActions.exportPDFSingle()" class="bg-slate-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><span class="material-symbols-outlined text-sm">picture_as_pdf</span> PDF</button>
+                            <button onclick="app.firebaseActions.exportExcelSingle()" class="bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><span class="material-symbols-outlined text-sm">table_view</span> XLSX</button>
+                        </div>
+                    </div>
+                    <div class="space-y-3">${s.entries.length?s.entries.map(e=>`<div class="bg-white p-4 rounded border flex justify-between"><div><div class="font-bold">${e.bufferName}</div><div class="text-xs text-slate-500">${e.batchCode}</div><div class="text-[10px] text-slate-400 mt-1">Signed by: ${e.userEmail || 'Unknown'}</div></div><button onclick="app.views.loadBuffer('${Object.keys(buffersData).find(k=>buffersData[k].id===e.bufferId) || 'sartorius'}')" class="text-blue-600"><span class="material-symbols-outlined">edit</span></button></div>`).join(''):'<div class="text-center py-10 text-slate-400">No Entries</div>'}</div></div>`;
             },
             loadBuffer: (key) => {
                 app.state.currentBufferKey=key; app.ui.highlightNav(key);
@@ -692,6 +932,9 @@
                 
                 // TARGET VALUE DISPLAY LOGIC ADDED
                 const tVal = exist ? exist.targetVol : b.baseVol;
+                
+                // Signature Badge
+                const signatureHtml = exist ? `<div class="text-xs text-slate-400 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-sm">verified_user</span> Signed by: <span class="font-mono text-slate-600">${exist.userEmail}</span></div>` : '';
 
                 let rows = '';
                 if(b.id==='P2') {
@@ -711,12 +954,12 @@
 
                 document.getElementById('mainContainer').innerHTML = `
                 <div class="max-w-6xl mx-auto fade-in pb-24">
-                    <div class="flex justify-between mb-6"><div><h2 class="text-3xl font-bold">${b.name}</h2><span class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 font-bold mt-1 inline-block">${b.safety}</span></div><div class="bg-white p-3 border rounded"><div class="text-xs font-bold text-slate-400">BATCH ID</div><div class="font-mono text-lg" id="liveBatchCode">${exist?exist.batchCode:'...'}</div></div></div>
+                    <div class="flex justify-between mb-6"><div><h2 class="text-3xl font-bold">${b.name}</h2><span class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 font-bold mt-1 inline-block">${b.safety}</span></div><div class="bg-white p-3 border rounded"><div class="text-xs font-bold text-slate-400">BATCH ID</div><div class="font-mono text-lg" id="liveBatchCode">${exist?exist.batchCode:'...'}</div>${signatureHtml}</div></div>
                     <div class="grid lg:grid-cols-12 gap-6">
                         <div class="lg:col-span-4 space-y-4">
                             <div class="bg-white p-5 border rounded shadow-sm">
                                 <label class="text-xs font-bold text-slate-500">Target Vol (mL)</label><input type="number" id="targetVol" ${disabled} value="${tVal}" class="w-full text-3xl font-bold border-b-2 border-blue-200 outline-none bg-transparent" oninput="app.actions.calculate('${key}')">
-                                <label class="text-xs font-bold text-slate-500 mt-4 block">Operator</label><input type="text" id="bufferOperator" ${disabled} value="${exist?exist.operator:s.defaultOperator}" maxlength="3" class="w-full text-lg font-bold uppercase font-mono border-b-2 outline-none bg-transparent" oninput="app.actions.updateLiveBatchCode()">
+                                <label class="text-xs font-bold text-slate-500 mt-4 block">Operator Initials</label><input type="text" id="bufferOperator" ${disabled} value="${exist?exist.operator:s.defaultOperator}" maxlength="3" class="w-full text-lg font-bold uppercase font-mono border-b-2 outline-none bg-transparent" oninput="app.actions.updateLiveBatchCode()">
                             </div>
                             <div class="bg-amber-50 border border-amber-200 p-4 rounded text-xs text-amber-900">
                                 <strong class="block mb-2 text-amber-800">Preparation Protocols</strong>
@@ -745,57 +988,352 @@
                 </div>`;
                 app.actions.calculate(key);
                 if(!exist) app.actions.updateLiveBatchCode();
-            }
-        },
-        openUserModal: async () => {
-            if (prompt("Enter Admin Password:") !== ADMIN_PASSWORD) return app.utils.showToast("Access Denied", "error");
+            },
             
-            document.getElementById('userModal').classList.remove('hidden');
-            const container = document.getElementById('userListContainer');
-            container.innerHTML = '<div class="p-6 text-center text-slate-400">Loading users...</div>';
-            
-            try {
-                const snap = await db.collection('users').get();
-                if (snap.empty) {
-                    container.innerHTML = '<div class="p-6 text-center text-slate-400">No users found.</div>';
-                    return;
-                }
+            // --- NEW SARTORIUS VIEW ---
+            loadSartorius: () => {
+                app.state.currentBufferKey = 'sartorius'; // Placeholder key
+                app.ui.highlightNav('sartorius');
                 
-                let html = '';
-                snap.forEach(doc => {
-                    const u = doc.data();
-                    const statusColor = u.approved ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800';
-                    const statusText = u.approved ? 'Approved' : 'Pending';
-                    const btn = u.approved ? '' : `<button onclick="app.views.approveUser('${doc.id}')" class="text-blue-600 text-sm font-bold hover:underline">Approve</button>`;
+                document.getElementById('mainContainer').innerHTML = `
+                <div class="max-w-5xl mx-auto fade-in pb-24">
+                    <div class="flex justify-between mb-6">
+                        <div><h2 class="text-3xl font-bold text-slate-900">Sartorius Alkaline Lysis</h2><div class="text-sm text-slate-500">Protocol ID: SOP-LYS-001 | Ver 1.15</div></div>
+                        <div class="text-right"><button class="bg-sky-100 text-sky-700 px-3 py-1 rounded text-xs font-bold border border-sky-200">Low-Shear Recovery</button></div>
+                    </div>
                     
-                    html += `
-                        <div class="flex justify-between items-center p-4 border-b border-slate-100 hover:bg-slate-50">
-                            <div>
-                                <div class="font-bold text-slate-800">${u.name}</div>
-                                <div class="text-xs text-slate-500">${u.email}</div>
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-8">
+                        
+                        <!-- Step 1: Equipment & Mise en Place (Optimized Grid) -->
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">1. Equipment & Preparation</h3>
+                            
+                            <!-- Mise en Place Checklist -->
+                            <div class="mb-6 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-2">Prerequisites (Mise en Place)</span>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox"> Ice Bath Ready</label>
+                                    <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox"> P3 Buffer on Ice</label>
+                                    <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox"> Centrifuge Pre-cooled (4°C)</label>
+                                    <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox"> Wide-Bore Tips</label>
+                                </div>
                             </div>
-                            <div class="flex items-center gap-4">
-                                <span class="px-2 py-1 rounded text-xs font-bold ${statusColor}">${statusText}</span>
-                                ${btn}
+
+                            <!-- Equipment Log Table -->
+                            <table class="w-full text-sm eq-table">
+                                <thead>
+                                    <tr>
+                                        <th>Equipment Type</th>
+                                        <th>Device ID / Serial No.</th>
+                                        <th>Calibration Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="font-medium text-slate-700">Pipette Controller</td>
+                                        <td><input type="text" class="step-input" id="eq_pipette"></td>
+                                        <td><input type="text" class="step-input" placeholder="e.g. Valid"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium text-slate-700">Centrifuge</td>
+                                        <td><input type="text" class="step-input" id="eq_centrifuge"></td>
+                                        <td><input type="text" class="step-input" placeholder="e.g. Valid"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium text-slate-700">pH Meter</td>
+                                        <td><input type="text" class="step-input" id="eq_phmeter"></td>
+                                        <td><input type="text" class="step-input" placeholder="e.g. Calibrated"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium text-slate-700">Timer</td>
+                                        <td><input type="text" class="step-input" id="eq_timer"></td>
+                                        <td><input type="text" class="step-input"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-medium text-slate-700">Balance</td>
+                                        <td><input type="text" class="step-input" id="eq_balance"></td>
+                                        <td><input type="text" class="step-input" placeholder="e.g. Level"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Step 2: Buffer Calc -->
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <h3 class="text-base font-bold text-slate-800 mb-3">2. Buffer Volume Calculator (1:10 Ratio)</h3>
+                            <div class="flex items-end gap-4 mb-4">
+                                <div>
+                                    <label class="sart-label">Net Biomass (g)</label>
+                                    <input type="number" id="sart_biomass" class="w-32 border-b-2 border-blue-400 bg-transparent text-2xl font-bold outline-none" placeholder="0.0" oninput="
+                                        const g = parseFloat(this.value)||0; 
+                                        const v = (g*10).toFixed(1);
+                                        document.getElementById('sart_p1').innerText=v;
+                                        document.getElementById('sart_p2').innerText=v;
+                                        document.getElementById('sart_p3').innerText=v;
+                                        const total = (g*30).toFixed(1);
+                                        document.getElementById('sart_total').innerText=total;
+                                        app.utils.updateSartTotal(total);
+                                    ">
+                                </div>
+                                <div class="text-xs text-slate-400 pb-2">Enter Wet Pellet Weight (Weight B - Weight A)</div>
+                            </div>
+                            <div class="grid grid-cols-4 gap-4 text-center">
+                                <div class="bg-white p-2 rounded border"><div class="text-xs text-slate-400">P1 Vol</div><div class="font-mono font-bold text-lg text-teal-600"><span id="sart_p1">0.0</span> mL</div></div>
+                                <div class="bg-white p-2 rounded border"><div class="text-xs text-slate-400">P2 Vol</div><div class="font-mono font-bold text-lg text-orange-500"><span id="sart_p2">0.0</span> mL</div></div>
+                                <div class="bg-white p-2 rounded border"><div class="text-xs text-slate-400">P3 Vol</div><div class="font-mono font-bold text-lg text-rose-500"><span id="sart_p3">0.0</span> mL</div></div>
+                                <div class="bg-blue-50 p-2 rounded border border-blue-100"><div class="text-xs text-blue-400">Total Lysate</div><div class="font-mono font-bold text-lg text-blue-700"><span id="sart_total">0.0</span> mL</div></div>
                             </div>
                         </div>
-                    `;
+
+                        <!-- Step 3: CaCl2 Optimization -->
+                        <div class="sart-section bg-slate-50">
+                            <h3 class="sart-header">3. CaCl₂ Optimization Calculator</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="sart-label">Total Lysate Volume (mL)</label>
+                                    <input type="number" id="calc_sartorius_total" class="sart-input mb-3" placeholder="Auto-filled from above">
+                                    
+                                    <label class="sart-label">Target Concentration</label>
+                                    <select id="sart_target_conc" class="sart-input" onchange="app.utils.calculateCaCl2(this.value)">
+                                        <option value="" disabled selected>Select Target...</option>
+                                        <option value="0.5">0.5 M (Standard)</option>
+                                        <option value="0.7">0.7 M (High Purity)</option>
+                                        <option value="0.8">0.8 M (Aggressive)</option>
+                                        <option value="custom">Custom...</option>
+                                    </select>
+                                    <input type="number" id="sart_custom_m" class="sart-input mt-2 hidden" placeholder="Custom Molarity (e.g. 0.6)" oninput="app.utils.calculateCaCl2('custom')">
+                                </div>
+                                <div class="flex items-center justify-center bg-white rounded border border-slate-200">
+                                    <div class="text-center">
+                                        <div class="text-xs text-slate-400 uppercase font-bold mb-1">Add 5.0M Stock</div>
+                                        <div class="text-4xl font-bold text-sky-600"><span id="sart_result_val">0.00</span> <span class="text-lg text-slate-400">mL</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Process Execution -->
+                        <div class="space-y-4">
+                            <!-- Step 1 Card -->
+                            <div class="step-card border-l-4 border-l-teal-500">
+                                <div class="step-title">
+                                    <span class="text-teal-700">Step 1: Cell Resuspension (P1)</span>
+                                    <span class="text-xs bg-teal-100 text-teal-800 px-2 py-0.5 rounded">VIGOROUS VORTEX</span>
+                                </div>
+                                
+                                <details class="mb-4">
+                                    <summary class="details-summary text-teal-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary>
+                                    <div class="details-box">
+                                        <p><strong>Goal:</strong> Create a homogeneous cell suspension. DNA is safe inside cells.</p>
+                                        <p><strong>Action:</strong> Press tube firmly on vortex at Max Speed for 30s - 1 min. Move in circles.</p>
+                                        <p><strong>Why:</strong> High-energy mixing is required to physically break apart the sticky bacterial pellet. Tris maintains pH; EDTA destabilizes membranes.</p>
+                                        <p class="mt-2 text-red-600 font-bold">PRECAUTION: This is the LAST time vortexing is permitted.</p>
+                                    </div>
+                                </details>
+
+                                <div class="step-row">
+                                    <div><label class="step-label">P1 Batch ID</label><input id="s1_batch" type="text" class="step-input"></div>
+                                    <div><label class="step-label">Vol Added (mL)</label><input id="s1_vol" type="number" class="step-input"></div>
+                                    <div><label class="step-label">Vortex Duration</label><input id="s1_vortex" type="text" class="step-input" placeholder="e.g. 45s"></div>
+                                    <div><label class="step-label">Measured pH</label><input id="s1_ph" type="number" class="step-input" placeholder="~8.0"></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100">
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Visual Check: Smooth/Milky?</span><input type="checkbox" class="scale-125"></div>
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Clump Check: ZERO Clumps?</span><input type="checkbox" class="scale-125"></div>
+                                </div>
+                                <div class="mt-2 border-t pt-2 border-slate-100">
+                                     <label class="flex items-center gap-2 text-xs font-bold text-teal-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S1-Resuspension]</label>
+                                </div>
+                            </div>
+
+                            <!-- Step 2 Card -->
+                            <div class="step-card border-l-4 border-l-orange-500">
+                                <div class="step-title">
+                                    <span class="text-orange-700">Step 2: Lysis (P2)</span>
+                                    <span class="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded">GENTLE INVERSION</span>
+                                </div>
+
+                                <details class="mb-4">
+                                    <summary class="details-summary text-orange-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary>
+                                    <div class="details-box">
+                                        <p><strong>Goal:</strong> Break open cells and denature DNA.</p>
+                                        <p><strong>Action:</strong> Cap tube. Slowly turn upside down and back (1 inversion). Repeat 4-6 times.</p>
+                                        <p><strong>Why:</strong> SDS dissolves membranes; NaOH raises pH to ~12.5 to denature DNA. Vortexing shears genomic DNA.</p>
+                                        <p class="mt-2 text-red-600 font-bold">CRITICAL: Max 5 minutes total exposure. Do not vortex.</p>
+                                    </div>
+                                </details>
+
+                                <div class="step-row">
+                                    <div><label class="step-label">P2 Batch ID</label><input id="s2_batch" type="text" class="step-input"></div>
+                                    <div><label class="step-label">Vol Added (mL)</label><input id="s2_vol" type="number" class="step-input"></div>
+                                    <div><label class="step-label">Start Time</label><input id="s2_start" type="time" class="step-input"></div>
+                                    <div><label class="step-label">Stop Time</label><input id="s2_stop" type="time" class="step-input"></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100">
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Method: Inversion Only?</span><input type="checkbox" class="scale-125"></div>
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Visual: Viscous & Clear?</span><input type="checkbox" class="scale-125"></div>
+                                </div>
+                                <div class="mt-2 border-t pt-2 border-slate-100">
+                                     <label class="flex items-center gap-2 text-xs font-bold text-orange-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S2-Lysis]</label>
+                                </div>
+                            </div>
+
+                            <!-- Step 3 Card -->
+                            <div class="step-card border-l-4 border-l-rose-500">
+                                <div class="step-title">
+                                    <span class="text-rose-700">Step 3: Neutralization (P3)</span>
+                                    <span class="text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded">IMMEDIATE INVERSION</span>
+                                </div>
+
+                                <details class="mb-4">
+                                    <summary class="details-summary text-rose-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary>
+                                    <div class="details-box">
+                                        <p><strong>Goal:</strong> Precipitate KDS, gDNA, and cellular debris.</p>
+                                        <p><strong>Action:</strong> Immediately add Ice-Cold P3. Invert 6-10 times immediately.</p>
+                                        <p><strong>Why:</strong> Acid renatures plasmid; Potassium precipitates SDS. Snow Globe effect indicates good separation.</p>
+                                        <p class="mt-2 text-red-600 font-bold">PRECAUTION: Slime = Failure (dissolved gDNA). Continue inverting if slime visible.</p>
+                                    </div>
+                                </details>
+
+                                <div class="step-row">
+                                    <div><label class="step-label">P3 Batch ID</label><input id="s3_batch" type="text" class="step-input"></div>
+                                    <div><label class="step-label">Vol Added (mL)</label><input id="s3_vol" type="number" class="step-input"></div>
+                                    <div><label class="step-label">P3 Temp Check</label><select class="step-input"><option>4°C (Ice)</option><option>RT (Fail)</option></select></div>
+                                    <div><label class="step-label">Measured pH</label><input id="s3_ph" type="number" class="step-input" placeholder="~5.5"></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100">
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Visual: Snow Globe (Fluff)?</span><input type="checkbox" class="scale-125"></div>
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Slime Check: None Visible?</span><input type="checkbox" class="scale-125"></div>
+                                </div>
+                                <div class="mt-2 border-t pt-2 border-slate-100">
+                                     <label class="flex items-center gap-2 text-xs font-bold text-rose-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S3-Neutralization]</label>
+                                </div>
+                            </div>
+
+                            <!-- Step 4 Card -->
+                            <div class="step-card border-l-4 border-l-sky-500">
+                                <div class="step-title">
+                                    <span class="text-sky-700">Step 4: CaCl₂ Polishing</span>
+                                    <span class="text-xs bg-sky-100 text-sky-800 px-2 py-0.5 rounded">ROLLING / TILTING</span>
+                                </div>
+
+                                <details class="mb-4">
+                                    <summary class="details-summary text-sky-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary>
+                                    <div class="details-box">
+                                        <p><strong>Goal:</strong> Remove RNA and residual genomic DNA fragments.</p>
+                                        <p><strong>Action:</strong> Add calculated stock. Rotate tube 45° while tilting 2-3 times.</p>
+                                        <p><strong>Why:</strong> Calcium binds phosphate backbone. Rolling prevents shattering the existing P3 precipitate.</p>
+                                        <p class="mt-2 text-red-600 font-bold">PRECAUTION: DO NOT MIX after the 10 min incubation.</p>
+                                    </div>
+                                </details>
+
+                                <div class="step-row">
+                                    <div><label class="step-label">CaCl₂ Batch</label><input id="s4_batch" type="text" class="step-input"></div>
+                                    <div><label class="step-label">Vol Added</label><input id="s4_vol" type="number" class="step-input" placeholder="mL"></div>
+                                    <div><label class="step-label">Incubation Temp</label><select class="step-input"><option>Room Temp</option><option>Ice</option></select></div>
+                                    <div><label class="step-label">Start Time</label><input id="s4_start" type="time" class="step-input"></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100">
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Incubation: 10 Min?</span><input type="checkbox" class="scale-125"></div>
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Post-Incub: NO MIXING?</span><input type="checkbox" class="scale-125"></div>
+                                </div>
+                                <div class="mt-2 border-t pt-2 border-slate-100">
+                                     <label class="flex items-center gap-2 text-xs font-bold text-sky-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S4-Polishing]</label>
+                                </div>
+                            </div>
+                            
+                            <!-- Step 5 & 6 Card -->
+                            <div class="step-card border-l-4 border-l-slate-500">
+                                <div class="step-title">
+                                    <span class="text-slate-700">Steps 5 & 6: Clarification & Recovery</span>
+                                </div>
+                                
+                                <details class="mb-4">
+                                    <summary class="details-summary text-slate-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details</summary>
+                                    <div class="details-box">
+                                        <p><strong>Step 5 (Clarification):</strong> Spin at 15,000 x g for 30 min at 4°C. No transfer required (spin directly in vessel).</p>
+                                        <p><strong>Step 6 (Recovery):</strong> Use serological pipette. Keep tip just below surface. Leave last 1-2mL to avoid pellet interface.</p>
+                                    </div>
+                                </details>
+
+                                <div class="step-row">
+                                    <div><label class="step-label">Centrifuge Speed</label><input type="text" class="step-input" value="15,000 x g"></div>
+                                    <div><label class="step-label">Spin Time</label><input type="text" class="step-input" value="30 min"></div>
+                                    <div><label class="step-label">Recovered Vol</label><input type="text" class="step-input" placeholder="mL"></div>
+                                    <div><label class="step-label">Final Clarity</label><select class="step-input"><option>Clear</option><option>Hazy</option></select></div>
+                                </div>
+                                <div class="mt-2 border-t pt-2 border-slate-100">
+                                     <label class="flex items-center gap-2 text-xs font-bold text-slate-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S6-Recovery]</label>
+                                </div>
+                            </div>
+
+                        </div>
+                        
+                        <div class="text-center pt-4">
+                            <button class="bg-slate-800 text-white px-6 py-2 rounded shadow hover:bg-slate-700" onclick="app.firebaseActions.prepareEntryForSave()">Log Completion</button>
+                        </div>
+                    </div>
+                </div>
+                `;
+                
+                // Bind custom show/hide for custom molarity input
+                document.getElementById('sart_target_conc').addEventListener('change', function() {
+                    const customInput = document.getElementById('sart_custom_m');
+                    if(this.value === 'custom') customInput.classList.remove('hidden');
+                    else customInput.classList.add('hidden');
                 });
-                container.innerHTML = html;
-            } catch (e) {
-                container.innerHTML = '<div class="p-6 text-center text-red-400">Error loading users.</div>';
+            },
+
+            openUserModal: async () => {
+                if (prompt("Enter Admin Password:") !== ADMIN_PASSWORD) return app.utils.showToast("Access Denied", "error");
+                
+                document.getElementById('userModal').classList.remove('hidden');
+                const container = document.getElementById('userListContainer');
+                container.innerHTML = '<div class="p-6 text-center text-slate-400">Loading users...</div>';
+                
+                try {
+                    const snap = await db.collection('users').get();
+                    if (snap.empty) {
+                        container.innerHTML = '<div class="p-6 text-center text-slate-400">No users found.</div>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    snap.forEach(doc => {
+                        const u = doc.data();
+                        const statusColor = u.approved ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800';
+                        const statusText = u.approved ? 'Approved' : 'Pending';
+                        const btn = u.approved ? '' : `<button onclick="app.views.approveUser('${doc.id}')" class="text-blue-600 text-sm font-bold hover:underline">Approve</button>`;
+                        
+                        html += `
+                            <div class="flex justify-between items-center p-4 border-b border-slate-100 hover:bg-slate-50">
+                                <div>
+                                    <div class="font-bold text-slate-800">${u.name}</div>
+                                    <div class="text-xs text-slate-500">${u.email}</div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <span class="px-2 py-1 rounded text-xs font-bold ${statusColor}">${statusText}</span>
+                                    ${btn}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                } catch (e) {
+                    container.innerHTML = '<div class="p-6 text-center text-red-400">Error loading users.</div>';
+                }
+            },
+            closeUserModal: () => document.getElementById('userModal').classList.add('hidden'),
+            approveUser: async (uid) => {
+                try {
+                    await db.collection('users').doc(uid).update({ approved: true });
+                    app.utils.showToast("User Approved");
+                    // Re-open modal to refresh list (simplified, secure enough for this use case)
+                    app.views.closeUserModal(); 
+                    // We don't re-trigger openUserModal automatically because of the password prompt. 
+                    // User can click the button again.
+                } catch(e) { app.utils.showToast("Error approving", "error"); }
             }
-        },
-        closeUserModal: () => document.getElementById('userModal').classList.add('hidden'),
-        approveUser: async (uid) => {
-            try {
-                await db.collection('users').doc(uid).update({ approved: true });
-                app.utils.showToast("User Approved");
-                app.views.openUserModal(); // Refresh list (admin has pass already entered this session context technically, but simple re-open triggers prompt again which is secure, or we can modify logic. For now, user clicks button again.)
-                // Actually, let's just reload the modal content without prompt
-                // Re-using logic inside openUserModal without prompt check is cleaner but I'll leave it simple: close and re-open is safe.
-                document.getElementById('userModal').classList.add('hidden');
-            } catch(e) { app.utils.showToast("Error approving", "error"); }
         }
     };
 
@@ -805,7 +1343,10 @@
         // COMPAT: db.collection().doc().onSnapshot()
         activeSessionUnsubscribe = db.collection("sessions").doc(id).onSnapshot(s => {
             if(s.exists) { app.state.activeSession = s.data(); app.ui.updateSessionIndicator(); app.ui.enableNav(); 
-                if(app.state.currentBufferKey) app.views.loadBuffer(app.state.currentBufferKey); else app.views.showSessionManager();
+                if(app.state.currentBufferKey) {
+                    if (app.state.currentBufferKey === 'sartorius') app.views.loadSartorius();
+                    else app.views.loadBuffer(app.state.currentBufferKey);
+                } else app.views.showSessionManager();
                 if(l) l.style.display='none';
             } else { app.utils.showToast("Invalid Session"); app.actions.goToDashboard(); }
         });
@@ -820,10 +1361,10 @@
                 // Define Header Rows
                 const wsData = [
                     [{ v: `Session: ${s.name}`, s: { font: { bold: true, sz: 14 } } }],
-                    [{ v: `Date: ${s.date} | Lead: ${s.defaultOperator}`, s: { font: { color: { rgb: "555555" } } } }],
+                    [{ v: `Date: ${s.date} | Lead: ${s.defaultOperator} | Lead Email: ${s.leadEmail||'Admin'}`, s: { font: { color: { rgb: "555555" } } } }],
                     [],
                     // Table Header
-                    ["Buffer", "Batch", "Operator", "Ingredient", "Target", "Unit", "Actual", "Status", "Final Vol", "pH", "Cond", "Comments"].map(h => ({ v: h, s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "444444" } } } }))
+                    ["Buffer", "Batch", "Operator", "Signer Email", "Ingredient", "Target", "Unit", "Actual", "Status", "Final Vol", "pH", "Cond", "Comments"].map(h => ({ v: h, s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "444444" } } } }))
                 ];
 
                 (s.entries||[]).forEach(e => {
@@ -841,6 +1382,7 @@
                             { v: e.bufferName },
                             { v: e.batchCode },
                             { v: e.operator },
+                            { v: e.userEmail || "Admin" },
                             { v: i.name },
                             { v: t || "" },
                             { v: i.unit || "" },
@@ -860,7 +1402,7 @@
                 XLSX.utils.sheet_add_aoa(ws, wsData, { origin: "A1" });
                 
                 // Set col widths
-                ws['!cols'] = [{wch:20}, {wch:25}, {wch:10}, {wch:25}, {wch:10}, {wch:8}, {wch:10}, {wch:12}, {wch:10}, {wch:8}, {wch:10}, {wch:30}];
+                ws['!cols'] = [{wch:20}, {wch:25}, {wch:10}, {wch:25}, {wch:25}, {wch:10}, {wch:8}, {wch:10}, {wch:12}, {wch:10}, {wch:8}, {wch:10}, {wch:30}];
 
                 // Sanitize sheet name (max 31 chars)
                 const safeName = s.name.replace(/[^a-zA-Z0-9 ]/g,"").substring(0,30);
@@ -881,7 +1423,7 @@
             Object.keys(grouped).sort().forEach(bName => {
                 wsData.push([]);
                 wsData.push([{ v: `BUFFER: ${bName}`, s: { font: { bold: true, color: { rgb: "004488" } } } }]);
-                wsData.push(["Session", "Date", "Batch", "Final Vol", "pH", "Cond", "Operator", "Comments", "Status"].map(h => ({ v: h, s: { font: { bold: true }, fill: { fgColor: { rgb: "DDDDDD" } } } })));
+                wsData.push(["Session", "Date", "Batch", "Operator", "Signer Email", "Final Vol", "pH", "Cond", "Comments", "Status"].map(h => ({ v: h, s: { font: { bold: true }, fill: { fgColor: { rgb: "DDDDDD" } } } })));
                 
                 grouped[bName].forEach(e => {
                     // Check deviations inside ingredients
@@ -897,10 +1439,11 @@
                         { v: e.sName, s:{fill:{fgColor:{rgb:rowColor}}} },
                         { v: e.sDate, s:{fill:{fgColor:{rgb:rowColor}}} },
                         { v: e.batchCode, s:{fill:{fgColor:{rgb:rowColor}}} },
+                        { v: e.operator, s:{fill:{fgColor:{rgb:rowColor}}} },
+                        { v: e.userEmail || "Admin", s:{fill:{fgColor:{rgb:rowColor}}} },
                         { v: e.finalVol, s:{fill:{fgColor:{rgb:rowColor}}} },
                         { v: e.ph, s:{fill:{fgColor:{rgb:rowColor}}} },
                         { v: e.cond, s:{fill:{fgColor:{rgb:rowColor}}} },
-                        { v: e.operator, s:{fill:{fgColor:{rgb:rowColor}}} },
                         { v: e.comments, s:{fill:{fgColor:{rgb:rowColor}}} },
                         { v: hasDev, s: { font: { bold: hasDev==="DEV!", color: { rgb: hasDev==="DEV!"?"FF0000":"000000" } }, fill:{fgColor:{rgb:rowColor}} } }
                     ]);
@@ -909,7 +1452,7 @@
 
             const ws = XLSX.utils.aoa_to_sheet([]);
             XLSX.utils.sheet_add_aoa(ws, wsData);
-            ws['!cols'] = [{wch:20}, {wch:15}, {wch:25}, {wch:10}, {wch:8}, {wch:10}, {wch:10}, {wch:30}, {wch:10}];
+            ws['!cols'] = [{wch:20}, {wch:15}, {wch:25}, {wch:10}, {wch:25}, {wch:10}, {wch:8}, {wch:10}, {wch:30}, {wch:10}];
             XLSX.utils.book_append_sheet(wb, ws, "Comparison");
         }
 
@@ -924,13 +1467,15 @@
             sessions.forEach((s,idx) => {
                 if(idx>0) { doc.addPage(); y=20; }
                 doc.setFontSize(16); doc.text(`Session: ${s.name}`, 14, y); y+=8;
-                doc.setFontSize(10); doc.text(`Date: ${s.date} | Lead: ${s.defaultOperator}`, 14, y); y+=10;
+                doc.setFontSize(10); doc.text(`Date: ${s.date} | Lead: ${s.defaultOperator} | Email: ${s.leadEmail||'Admin'}`, 14, y); y+=10;
                 
                 (s.entries||[]).forEach(e => {
                     if(y>180) { doc.addPage(); y=20; }
                     doc.setFillColor(240,240,240); doc.rect(14,y,269,14,'F');
                     doc.setFont("helvetica","bold"); doc.text(`${e.bufferName} (${e.batchCode})`, 16, y+5);
                     doc.setFont("helvetica","normal"); doc.text(`Vol: ${e.finalVol} | pH: ${e.ph} | Cond: ${e.cond} | Note: ${e.comments}`, 16, y+10);
+                    // Add signer line
+                    doc.setFontSize(8); doc.text(`Signed by: ${e.userEmail||'Admin'}`, 220, y+10); doc.setFontSize(10);
                     y+=16;
                     
                     const body = (e.ingredients||[]).map(i => [i.name, i.target, i.unit, i.actual, (!isNaN(i.target) && Math.abs((i.actual-i.target)/i.target)>0.05 ? "DEV!" : "OK")]);
@@ -943,27 +1488,25 @@
             const grouped = {};
             sessions.forEach(s => (s.entries||[]).forEach(e => { 
                 if(!grouped[e.bufferName]) grouped[e.bufferName]=[]; 
-                // Calculate status for PDF comparison table
                 let status = "OK";
                 (e.ingredients || []).forEach(i => {
                      if (!isNaN(i.target) && Math.abs((i.actual - i.target) / i.target) > 0.05) status = "DEV!";
                 });
-                grouped[e.bufferName].push([s.name, s.date, e.batchCode, e.finalVol, e.ph, e.cond, e.operator, e.comments, status]); 
+                grouped[e.bufferName].push([s.name, s.date, e.batchCode, e.userEmail||'Admin', e.finalVol, e.ph, e.cond, e.comments, status]); 
             }));
             
             Object.keys(grouped).sort().forEach(b => {
                  if(y>180) { doc.addPage(); y=20; }
                  doc.setFont("helvetica","bold"); doc.text(b, 14, y); y+=6;
                  
-                 // Use 'autoTable' from the library
                  doc.autoTable({ 
                      startY: y, 
-                     head:[['Session','Date','Batch','Vol','pH','Cond', 'Op', 'Comments', 'Status']], 
+                     head:[['Session','Date','Batch','Signer','Vol','pH','Cond', 'Comments', 'Status']], 
                      body: grouped[b], 
                      theme:'striped',
                      headStyles: { fillColor: [50, 50, 50] },
                      styles: { fontSize: 8, cellPadding: 1.5 },
-                     columnStyles: { 7: { cellWidth: 50 } } // Wider comments
+                     columnStyles: { 7: { cellWidth: 50 } } 
                  });
                  y = doc.lastAutoTable.finalY + 10;
             });
