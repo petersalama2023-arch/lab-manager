@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <title>Lab Prep Manager V15.1 (Draft Support)</title>
+    <title>Lab Prep Manager V15.0 (Full SOP Detail)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- PDF Generation -->
@@ -73,7 +73,7 @@
     <!-- Loader -->
     <div class="flex flex-col items-center" id="loader-content">
         <span class="material-symbols-outlined text-4xl text-blue-600 animate-spin">cloud_sync</span>
-        <p class="mt-4 text-lg font-bold text-slate-800">Lab Manager V15.1</p>
+        <p class="mt-4 text-lg font-bold text-slate-800">Lab Manager V15.0</p>
         <p class="mt-2 text-sm text-slate-500 font-mono bg-slate-100 px-2 py-1 rounded" id="loader-text">Loading SOPs...</p>
     </div>
 
@@ -156,7 +156,7 @@
             <span class="material-symbols-outlined text-xl">biotech</span>
         </div>
         <div>
-            <h1 class="text-sm font-bold text-slate-900 leading-tight">Lab Prep Manager V15.1</h1>
+            <h1 class="text-sm font-bold text-slate-900 leading-tight">Lab Prep Manager V15.0</h1>
             <p class="text-[10px] font-medium text-slate-500 uppercase tracking-wide font-bold">● CLOUD SYNC ACTIVE</p>
         </div>
     </div>
@@ -616,7 +616,6 @@
                 safe.shelfLife = safe.shelfLife || "";
                 safe.qcTarget = safe.qcTarget || "";
                 safe.userEmail = safe.userEmail || ""; 
-                safe.status = "Completed"; // Default
                 return safe;
             },
             // Specific function for Sartorius calculations
@@ -691,12 +690,12 @@
                     app.utils.showToast("Incorrect Password", "error");
                 }
             },
-            // Modified to handle Draft vs Submit
-            prepareEntryForSave: async (isDraft = false) => {
+            prepareEntryForSave: async () => {
                 const s = app.state.activeSession;
                 
                 // Handle Sartorius - Custom Logging
                 if (app.state.currentBufferKey === 'sartorius') {
+                    // Collect Data from Sartorius Form
                     const biomass = document.getElementById('sart_biomass').value;
                     const p1 = document.getElementById('sart_p1').innerText;
                     const p2 = document.getElementById('sart_p2').innerText;
@@ -707,11 +706,23 @@
                     // Detailed Inputs
                     const s1_batch = document.getElementById('s1_batch').value;
                     const s1_vortex = document.getElementById('s1_vortex').value;
+                    const s1_ph = document.getElementById('s1_ph').value;
                     const s2_start = document.getElementById('s2_start').value;
                     const s2_stop = document.getElementById('s2_stop').value;
+                    const s3_ph = document.getElementById('s3_ph').value;
+                    
+                    // Equipment Inputs
+                    const equipList = {
+                         pipette: document.getElementById('eq_pipette').value,
+                         centrifuge: document.getElementById('eq_centrifuge').value,
+                         phmeter: document.getElementById('eq_phmeter').value,
+                         balance: document.getElementById('eq_balance').value
+                    };
 
-                    if(!biomass && !isDraft) return app.utils.showToast("Enter Biomass", "error");
+                    // Basic Check
+                    if(!biomass) return app.utils.showToast("Enter Biomass", "error");
 
+                    // Create Custom Entry Object
                     const entry = {
                         entryId: app.utils.generateId(),
                         bufferId: 'sartorius',
@@ -719,15 +730,14 @@
                         batchCode: `LYS-${s.date.replace(/-/g,'')}-${s.defaultOperator}`,
                         operator: s.defaultOperator,
                         targetVol: totalVol,
-                        finalVol: totalVol, 
-                        ph: "N/A",
+                        finalVol: totalVol, // Approx
+                        ph: s3_ph || "N/A",
                         cond: "N/A",
-                        comments: `Biomass: ${biomass}g | P1 Batch: ${s1_batch} | P2 Time: ${s2_start}-${s2_stop} | CaCl2: ${caclVol}mL`,
+                        comments: `Biomass: ${biomass}g | P1 Batch: ${s1_batch} | P1 Vortex: ${s1_vortex} | P2 Time: ${s2_start}-${s2_stop} | CaCl2: ${caclVol}mL | Equip: ${JSON.stringify(equipList)}`,
                         ingredients: [], 
                         shelfLife: "Immediate Use",
                         qcTarget: "Clear Lysate",
                         userEmail: auth.currentUser ? auth.currentUser.email : "Admin",
-                        status: isDraft ? "Draft" : "Completed",
                         timestamp: new Date().toISOString()
                     };
                     
@@ -735,10 +745,8 @@
                     return;
                 }
 
-                // Standard Protocols
                 const b = buffersData[app.state.currentBufferKey];
-                if(!isDraft && !document.getElementById('equipCheck').checked) return app.utils.showToast("Confirm protocols", "error");
-                
+                if(!document.getElementById('equipCheck').checked) return app.utils.showToast("Confirm protocols", "error");
                 const op = document.getElementById('bufferOperator').value || s.defaultOperator, targetVol = document.getElementById('targetVol').value;
                 const ingredients = [], deviations = [];
                 
@@ -750,14 +758,11 @@
                     b.ingredients.forEach((ing, i) => { if(ing.type!=='fill' && ing.type!=='adj') ingredients.push({name: ing.name, target: document.getElementById(`calc_target_${i}`).innerText, actual: document.getElementById(`ing_input_${i}`).value, unit: ing.unit}); });
                 }
 
-                // Check deviations only if NOT a draft
-                if (!isDraft) {
-                    ingredients.forEach(i => {
-                        const t = parseFloat(i.target), a = parseFloat(i.actual);
-                        if(!isNaN(t) && !isNaN(a) && Math.abs((a-t)/t) > 0.05) deviations.push(`${i.name}: Target ${t} vs ${a}`);
-                        else if(t>0 && isNaN(a)) deviations.push(`${i.name}: Missing Value`);
-                    });
-                }
+                ingredients.forEach(i => {
+                    const t = parseFloat(i.target), a = parseFloat(i.actual);
+                    if(!isNaN(t) && !isNaN(a) && Math.abs((a-t)/t) > 0.05) deviations.push(`${i.name}: Target ${t} vs ${a}`);
+                    else if(t>0 && isNaN(a)) deviations.push(`${i.name}: Missing Value`);
+                });
 
                 const exist = s.entries.find(e => e.bufferId === b.id);
                 let entry = { 
@@ -775,7 +780,6 @@
                     shelfLife: b.shelfLife || "N/A",
                     qcTarget: (b.qc ? b.qc.target : "N/A"),
                     userEmail: auth.currentUser ? auth.currentUser.email : "Admin", 
-                    status: isDraft ? "Draft" : "Completed",
                     timestamp: new Date().toISOString() 
                 };
 
@@ -793,9 +797,7 @@
                 let entries = [...s.entries]; const idx = entries.findIndex(e => e.bufferId === entry.bufferId);
                 if(idx >= 0) entries[idx] = entry; else entries.push(entry);
                 await db.collection("sessions").doc(s.id).update({ entries });
-                app.utils.showToast(entry.status === "Draft" ? "Draft Saved" : "Log Completed"); 
-                app.state.unlockedEntryId = null; 
-                app.views.showSessionManager();
+                app.utils.showToast("Saved"); app.state.unlockedEntryId = null; app.views.showSessionManager();
             },
             exportMulti: (mode, format, manual) => {
                 const items = manual || app.state.allSessions.filter(s => app.state.selectedSessions.has(s.id));
@@ -920,29 +922,14 @@
                             <button onclick="app.firebaseActions.exportExcelSingle()" class="bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><span class="material-symbols-outlined text-sm">table_view</span> XLSX</button>
                         </div>
                     </div>
-                    <div class="space-y-3">${s.entries.length?s.entries.map(e=> {
-                        const isDraft = e.status === "Draft";
-                        const badge = isDraft ? '<span class="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded border border-amber-200 ml-2 font-bold">DRAFT</span>' : '';
-                        return `<div class="bg-white p-4 rounded border flex justify-between"><div><div class="font-bold flex items-center">${e.bufferName} ${badge}</div><div class="text-xs text-slate-500">${e.batchCode}</div><div class="text-[10px] text-slate-400 mt-1">Signed by: ${e.userEmail || 'Unknown'}</div></div><button onclick="app.views.loadBuffer('${Object.keys(buffersData).find(k=>buffersData[k].id===e.bufferId) || 'sartorius'}')" class="text-blue-600"><span class="material-symbols-outlined">edit</span></button></div>`;
-                    }).join(''):'<div class="text-center py-10 text-slate-400">No Entries</div>'}</div></div>`;
+                    <div class="space-y-3">${s.entries.length?s.entries.map(e=>`<div class="bg-white p-4 rounded border flex justify-between"><div><div class="font-bold">${e.bufferName}</div><div class="text-xs text-slate-500">${e.batchCode}</div><div class="text-[10px] text-slate-400 mt-1">Signed by: ${e.userEmail || 'Unknown'}</div></div><button onclick="app.views.loadBuffer('${Object.keys(buffersData).find(k=>buffersData[k].id===e.bufferId) || 'sartorius'}')" class="text-blue-600"><span class="material-symbols-outlined">edit</span></button></div>`).join(''):'<div class="text-center py-10 text-slate-400">No Entries</div>'}</div></div>`;
             },
             loadBuffer: (key) => {
                 app.state.currentBufferKey=key; app.ui.highlightNav(key);
                 const b = buffersData[key], s = app.state.activeSession, exist = s.entries.find(e=>e.bufferId===b.id);
-                const locked = exist && exist.status !== "Draft" && app.state.unlockedEntryId !== exist.entryId;
+                const locked = exist && app.state.unlockedEntryId !== exist.entryId;
                 const disabled = locked ? 'disabled' : '';
-                
-                // Buttons
-                let btns = '';
-                if (locked) {
-                    btns = `<button onclick="app.firebaseActions.unlockEntry('${exist.entryId}')" class="bg-amber-600 text-white px-6 py-2 rounded font-bold shadow">Unlock</button>`;
-                } else {
-                    // Draft + Save options
-                    btns = `
-                        <button onclick="app.firebaseActions.prepareEntryForSave(true)" class="bg-slate-200 text-slate-700 px-4 py-2 rounded font-bold hover:bg-slate-300 mr-2">Save Draft</button>
-                        <button onclick="app.firebaseActions.prepareEntryForSave(false)" class="bg-slate-900 text-white px-6 py-2 rounded font-bold shadow hover:bg-slate-800">Log Completion</button>
-                    `;
-                }
+                const btn = locked ? `<button onclick="app.firebaseActions.unlockEntry('${exist.entryId}')" class="bg-amber-600 text-white px-6 py-2 rounded font-bold shadow">Unlock</button>` : `<button onclick="app.firebaseActions.prepareEntryForSave()" class="bg-slate-900 text-white px-6 py-2 rounded font-bold shadow">Save</button>`;
                 
                 // TARGET VALUE DISPLAY LOGIC ADDED
                 const tVal = exist ? exist.targetVol : b.baseVol;
@@ -996,7 +983,7 @@
                                 <div><label class="text-xs font-bold">Comments</label><textarea id="comments" ${disabled} class="w-full border rounded p-2" rows="2">${exist?.comments||''}</textarea></div>
                                 <div class="flex gap-2 items-start bg-slate-50 p-2 rounded"><input type="checkbox" id="equipCheck" ${disabled} class="mt-1"><label for="equipCheck" class="text-xs">I certify I have followed the detailed mixing and sterilization protocols (Autoclave/Filter) above.</label></div>
                             </div>
-                            <div class="p-4 border-t bg-slate-50 flex justify-end">${btns}</div>
+                            <div class="p-4 border-t bg-slate-50 flex justify-end">${btn}</div>
                         </div>
                     </div>
                 </div>`;
@@ -1084,6 +1071,7 @@
                                 <div>
                                     <label class="sart-label">Total Lysate Volume (mL)</label>
                                     <input type="number" id="calc_sartorius_total" class="sart-input mb-3" placeholder="Auto-filled from above">
+                                    
                                     <label class="sart-label">Target Concentration</label>
                                     <select id="sart_target_conc" class="sart-input" onchange="app.utils.calculateCaCl2(this.value)">
                                         <option value="" disabled selected>Select Target...</option>
@@ -1107,44 +1095,161 @@
                         <div class="space-y-4">
                             <!-- Step 1 Card -->
                             <div class="step-card border-l-4 border-l-teal-500">
-                                <div class="step-title"><span class="text-teal-700">Step 1: Cell Resuspension (P1)</span><span class="text-xs bg-teal-100 text-teal-800 px-2 py-0.5 rounded">VIGOROUS VORTEX</span></div>
-                                <details class="mb-4"><summary class="details-summary text-teal-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary><div class="details-box"><p><strong>Goal:</strong> Homogeneous cell suspension. DNA is safe inside cells.</p><p><strong>Action:</strong> Press tube firmly on vortex at Max Speed for 30s - 1 min. Move in circles.</p><p><strong>Why:</strong> High-energy mixing is required to physically break apart the sticky bacterial pellet.</p><p class="mt-2 text-red-600 font-bold">PRECAUTION: This is the LAST time vortexing is permitted.</p></div></details>
-                                <div class="step-row"><div><label class="step-label">P1 Batch ID</label><input id="s1_batch" type="text" class="step-input"></div><div><label class="step-label">Vol Added (mL)</label><input id="s1_vol" type="number" class="step-input"></div><div><label class="step-label">Vortex Time</label><input id="s1_vortex" type="text" class="step-input" placeholder="e.g. 45s"></div><div><label class="step-label">Measured pH</label><input id="s1_ph" type="number" class="step-input" placeholder="~8.0"></div></div>
-                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100"><div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Visual Check: Smooth?</span><input type="checkbox" class="scale-125"></div><div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Clump Check: ZERO?</span><input type="checkbox" class="scale-125"></div></div>
-                                <div class="mt-2 border-t pt-2 border-slate-100"><label class="flex items-center gap-2 text-xs font-bold text-teal-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S1-Resuspension]</label></div>
+                                <div class="step-title">
+                                    <span class="text-teal-700">Step 1: Cell Resuspension (P1)</span>
+                                    <span class="text-xs bg-teal-100 text-teal-800 px-2 py-0.5 rounded">VIGOROUS VORTEX</span>
+                                </div>
+                                
+                                <details class="mb-4">
+                                    <summary class="details-summary text-teal-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary>
+                                    <div class="details-box">
+                                        <p><strong>Goal:</strong> Homogeneous cell suspension. DNA is safe inside cells.</p>
+                                        <p><strong>Action:</strong> Press tube firmly on vortex at Max Speed for 30s - 1 min. Move in circles.</p>
+                                        <p><strong>Why:</strong> High-energy mixing is required to physically break apart the sticky bacterial pellet.</p>
+                                        <p class="mt-2 text-red-600 font-bold">PRECAUTION: This is the LAST time vortexing is permitted.</p>
+                                    </div>
+                                </details>
+
+                                <div class="step-row">
+                                    <div><label class="step-label">P1 Batch ID</label><input id="s1_batch" type="text" class="step-input"></div>
+                                    <div><label class="step-label">Vol Added (mL)</label><input id="s1_vol" type="number" class="step-input"></div>
+                                    <div><label class="step-label">Vortex Duration</label><input id="s1_vortex" type="text" class="step-input" placeholder="e.g. 45s"></div>
+                                    <div><label class="step-label">Measured pH</label><input id="s1_ph" type="number" class="step-input" placeholder="~8.0"></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100">
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Visual Check: Smooth?</span><input type="checkbox" class="scale-125"></div>
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Clump Check: ZERO?</span><input type="checkbox" class="scale-125"></div>
+                                </div>
+                                <div class="mt-2 border-t pt-2 border-slate-100">
+                                     <label class="flex items-center gap-2 text-xs font-bold text-teal-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S1-Resuspension]</label>
+                                </div>
                             </div>
-                            
+
                             <!-- Step 2 Card -->
                             <div class="step-card border-l-4 border-l-orange-500">
-                                <div class="step-title"><span class="text-orange-700">Step 2: Lysis (P2)</span><span class="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded">GENTLE INVERSION</span></div>
-                                <details class="mb-4"><summary class="details-summary text-orange-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary><div class="details-box"><p><strong>Goal:</strong> Break cells, denature DNA.</p><p><strong>Action:</strong> Cap tube. Slowly turn upside down and back 4-6 times.</p><p><strong>Why:</strong> Cells burst, releasing fragile genomic DNA strings. Vortexing shears these strings.</p><p class="mt-2 text-red-600 font-bold">CRITICAL: Max 5 minutes total exposure to P2.</p></div></details>
-                                <div class="step-row"><div><label class="step-label">P2 Batch ID</label><input id="s2_batch" type="text" class="step-input"></div><div><label class="step-label">Vol Added (mL)</label><input id="s2_vol" type="number" class="step-input"></div><div><label class="step-label">Start Time</label><input id="s2_start" type="time" class="step-input"></div><div><label class="step-label">Stop Time</label><input id="s2_stop" type="time" class="step-input"></div></div>
-                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100"><div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Method: Inversion Only?</span><input type="checkbox" class="scale-125"></div><div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Visual: Viscous/Clear?</span><input type="checkbox" class="scale-125"></div></div>
-                                <div class="mt-2 border-t pt-2 border-slate-100"><label class="flex items-center gap-2 text-xs font-bold text-orange-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S2-Lysis]</label></div>
+                                <div class="step-title">
+                                    <span class="text-orange-700">Step 2: Lysis (P2)</span>
+                                    <span class="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded">GENTLE INVERSION</span>
+                                </div>
+
+                                <details class="mb-4">
+                                    <summary class="details-summary text-orange-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary>
+                                    <div class="details-box">
+                                        <p><strong>Goal:</strong> Break cells, denature DNA.</p>
+                                        <p><strong>Action:</strong> Cap tube. Slowly turn upside down and back 4-6 times.</p>
+                                        <p><strong>Why:</strong> Cells burst, releasing fragile genomic DNA strings. Vortexing shears these strings.</p>
+                                        <p class="mt-2 text-red-600 font-bold">CRITICAL: Max 5 minutes total exposure to P2.</p>
+                                    </div>
+                                </details>
+
+                                <div class="step-row">
+                                    <div><label class="step-label">P2 Batch ID</label><input id="s2_batch" type="text" class="step-input"></div>
+                                    <div><label class="step-label">Vol Added (mL)</label><input id="s2_vol" type="number" class="step-input"></div>
+                                    <div><label class="step-label">Start Time</label><input id="s2_start" type="time" class="step-input"></div>
+                                    <div><label class="step-label">Stop Time</label><input id="s2_stop" type="time" class="step-input"></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100">
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Method: Inversion Only?</span><input type="checkbox" class="scale-125"></div>
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Visual: Viscous/Clear?</span><input type="checkbox" class="scale-125"></div>
+                                </div>
+                                <div class="mt-2 border-t pt-2 border-slate-100">
+                                     <label class="flex items-center gap-2 text-xs font-bold text-orange-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S2-Lysis]</label>
+                                </div>
                             </div>
 
                             <!-- Step 3 Card -->
                             <div class="step-card border-l-4 border-l-rose-500">
-                                <div class="step-title"><span class="text-rose-700">Step 3: Neutralization (P3)</span><span class="text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded">IMMEDIATE INVERSION</span></div>
-                                <details class="mb-4"><summary class="details-summary text-rose-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary><div class="details-box"><p><strong>Goal:</strong> Precipitate KDS/gDNA.</p><p><strong>Action:</strong> Add Ice-Cold P3. Invert 6-10 times immediately.</p><p><strong>Why:</strong> Rapid mixing distributes acid. Snow Globe effect indicates success.</p><p class="mt-2 text-red-600 font-bold">PRECAUTION: Slime = Failure (dissolved gDNA).</p></div></details>
-                                <div class="step-row"><div><label class="step-label">P3 Batch ID</label><input id="s3_batch" type="text" class="step-input"></div><div><label class="step-label">Vol Added (mL)</label><input id="s3_vol" type="number" class="step-input"></div><div><label class="step-label">P3 Temp Check</label><select class="step-input"><option>4°C (Ice)</option><option>RT (Fail)</option></select></div><div><label class="step-label">Measured pH</label><input id="s3_ph" type="number" class="step-input" placeholder="~5.5"></div></div>
-                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100"><div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Visual: Snow Globe (Fluff)?</span><input type="checkbox" class="scale-125"></div><div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Slime Check: None?</span><input type="checkbox" class="scale-125"></div></div>
-                                <div class="mt-2 border-t pt-2 border-slate-100"><label class="flex items-center gap-2 text-xs font-bold text-rose-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S3-Neutralization]</label></div>
+                                <div class="step-title">
+                                    <span class="text-rose-700">Step 3: Neutralization (P3)</span>
+                                    <span class="text-xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded">IMMEDIATE INVERSION</span>
+                                </div>
+
+                                <details class="mb-4">
+                                    <summary class="details-summary text-rose-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary>
+                                    <div class="details-box">
+                                        <p><strong>Goal:</strong> Precipitate KDS/gDNA.</p>
+                                        <p><strong>Action:</strong> Add Ice-Cold P3. Invert 6-10 times immediately.</p>
+                                        <p><strong>Why:</strong> Rapid mixing distributes acid. Snow Globe effect indicates success.</p>
+                                        <p class="mt-2 text-red-600 font-bold">PRECAUTION: Slime = Failure (dissolved gDNA).</p>
+                                    </div>
+                                </details>
+
+                                <div class="step-row">
+                                    <div><label class="step-label">P3 Batch ID</label><input id="s3_batch" type="text" class="step-input"></div>
+                                    <div><label class="step-label">Vol Added (mL)</label><input id="s3_vol" type="number" class="step-input"></div>
+                                    <div><label class="step-label">P3 Temp Check</label><select class="step-input"><option>4°C (Ice)</option><option>RT (Fail)</option></select></div>
+                                    <div><label class="step-label">Measured pH</label><input id="s3_ph" type="number" class="step-input" placeholder="~5.5"></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100">
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Visual: Snow Globe (Fluff)?</span><input type="checkbox" class="scale-125"></div>
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Slime Check: None?</span><input type="checkbox" class="scale-125"></div>
+                                </div>
+                                <div class="mt-2 border-t pt-2 border-slate-100">
+                                     <label class="flex items-center gap-2 text-xs font-bold text-rose-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S3-Neutralization]</label>
+                                </div>
                             </div>
-                            
+
                             <!-- Step 4 Card -->
                             <div class="step-card border-l-4 border-l-sky-500">
-                                <div class="step-title"><span class="text-sky-700">Step 4: CaCl₂ Polishing</span><span class="text-xs bg-sky-100 text-sky-800 px-2 py-0.5 rounded">ROLLING / TILTING</span></div>
-                                <details class="mb-4"><summary class="details-summary text-sky-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary><div class="details-box"><p><strong>Goal:</strong> Remove RNA and micro-DNA fragments.</p><p><strong>Action:</strong> Add calculated stock. Rotate tube 45° while tilting 2-3 times.</p><p><strong>Why:</strong> Calcium binds phosphate. Rolling prevents shattering precipitate.</p><p class="mt-2 text-red-600 font-bold">PRECAUTION: DO NOT MIX after the 10 min incubation.</p></div></details>
-                                <div class="step-row"><div><label class="step-label">CaCl₂ Batch</label><input id="s4_batch" type="text" class="step-input"></div><div><label class="step-label">Vol Added</label><input id="s4_vol" type="number" class="step-input" placeholder="mL"></div><div><label class="step-label">Incubation Temp</label><select class="step-input"><option>Room Temp</option><option>Ice</option></select></div><div><label class="step-label">Start Time</label><input id="s4_start" type="time" class="step-input"></div></div>
-                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100"><div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Incubation: 10 Min?</span><input type="checkbox" class="scale-125"></div><div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Post-Incub: NO MIXING?</span><input type="checkbox" class="scale-125"></div></div>
-                                <div class="mt-2 border-t pt-2 border-slate-100"><label class="flex items-center gap-2 text-xs font-bold text-sky-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S4-Polishing]</label></div>
+                                <div class="step-title">
+                                    <span class="text-sky-700">Step 4: CaCl₂ Polishing</span>
+                                    <span class="text-xs bg-sky-100 text-sky-800 px-2 py-0.5 rounded">ROLLING / TILTING</span>
+                                </div>
+
+                                <details class="mb-4">
+                                    <summary class="details-summary text-sky-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details & Justification</summary>
+                                    <div class="details-box">
+                                        <p><strong>Goal:</strong> Remove RNA and micro-DNA fragments.</p>
+                                        <p><strong>Action:</strong> Add calculated stock. Rotate tube 45° while tilting 2-3 times.</p>
+                                        <p><strong>Why:</strong> Calcium binds phosphate. Rolling prevents shattering precipitate.</p>
+                                        <p class="mt-2 text-red-600 font-bold">PRECAUTION: DO NOT MIX after the 10 min incubation.</p>
+                                    </div>
+                                </details>
+
+                                <div class="step-row">
+                                    <div><label class="step-label">CaCl₂ Batch</label><input id="s4_batch" type="text" class="step-input"></div>
+                                    <div><label class="step-label">Vol Added</label><input id="s4_vol" type="number" class="step-input" placeholder="mL"></div>
+                                    <div><label class="step-label">Incubation Temp</label><select class="step-input"><option>Room Temp</option><option>Ice</option></select></div>
+                                    <div><label class="step-label">Start Time</label><input id="s4_start" type="time" class="step-input"></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 border-t pt-2 border-slate-100">
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Incubation: 10 Min?</span><input type="checkbox" class="scale-125"></div>
+                                    <div class="flex items-center justify-between"><span class="text-xs font-bold text-slate-600">Post-Incub: NO MIXING?</span><input type="checkbox" class="scale-125"></div>
+                                </div>
+                                <div class="mt-2 border-t pt-2 border-slate-100">
+                                     <label class="flex items-center gap-2 text-xs font-bold text-sky-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S4-Polishing]</label>
+                                </div>
                             </div>
+                             
+                            <!-- Step 5 & 6 Cards -->
+                            <div class="step-card border-l-4 border-l-slate-500">
+                                <div class="step-title">
+                                    <span class="text-slate-700">Step 5 & 6: Clarification & Recovery</span>
+                                </div>
+                                
+                                <details class="mb-4">
+                                    <summary class="details-summary text-slate-600 text-xs flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Protocol Details</summary>
+                                    <div class="details-box">
+                                        <p><strong>Step 5 (Clarification):</strong> Spin at 15,000 x g for 30 min at 4°C. No transfer required (spin directly in vessel).</p>
+                                        <p><strong>Step 6 (Recovery):</strong> Use serological pipette. Keep tip just below surface. Leave last 1-2mL to avoid pellet interface.</p>
+                                    </div>
+                                </details>
+
+                                <div class="step-row">
+                                    <div><label class="step-label">Centrifuge Speed</label><input type="text" class="step-input" value="15,000 x g"></div>
+                                    <div><label class="step-label">Spin Time</label><input type="text" class="step-input" value="30 min"></div>
+                                    <div><label class="step-label">Recovered Vol</label><input type="text" class="step-input" placeholder="mL"></div>
+                                    <div><label class="step-label">Final Clarity</label><select class="step-input"><option>Clear</option><option>Hazy</option></select></div>
+                                </div>
+                                <div class="mt-2 border-t pt-2 border-slate-100">
+                                     <label class="flex items-center gap-2 text-xs font-bold text-slate-700"><input type="checkbox" class="scale-125"> QC Sample Taken (100µL) -> [S6-Recovery]</label>
+                                </div>
+                            </div>
+
                         </div>
                         
                         <div class="text-center pt-4">
-                             <button class="bg-slate-200 text-slate-700 px-4 py-2 rounded font-bold hover:bg-slate-300 mr-2" onclick="app.firebaseActions.prepareEntryForSave(true)">Save Draft</button>
-                             <button class="bg-slate-800 text-white px-6 py-2 rounded shadow hover:bg-slate-700" onclick="app.firebaseActions.prepareEntryForSave(false)">Log Completion</button>
+                            <button class="bg-slate-800 text-white px-6 py-2 rounded shadow hover:bg-slate-700" onclick="app.firebaseActions.prepareEntryForSave()">Log Completion</button>
                         </div>
                     </div>
                 </div>
